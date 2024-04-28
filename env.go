@@ -9,6 +9,8 @@ import (
 
 type Option func(map[string]interface{}) error
 
+// Load variables from the environment into the provided struct
+// ...
 func Load(obj interface{}, options ...Option) error {
 	// read in any overrides the user wants to do
 	overrides := make(map[string]interface{})
@@ -40,6 +42,7 @@ func Load(obj interface{}, options ...Option) error {
 	return nil
 }
 
+// ...
 func handleStruct(s reflect.Value, overrides map[string]interface{}) error {
 	for i := 0; i < s.NumField(); i++ {
 		// handle recursive cases
@@ -77,6 +80,7 @@ func handleStruct(s reflect.Value, overrides map[string]interface{}) error {
 	return nil
 }
 
+// ...
 func setField(f reflect.Value, val interface{}) error {
 	k := f.Kind()
 	switch k {
@@ -124,6 +128,7 @@ func setField(f reflect.Value, val interface{}) error {
 	return nil
 }
 
+// ...
 func parseTag(field reflect.StructField) (string, bool, bool) {
 	required := true
 
