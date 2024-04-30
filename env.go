@@ -4,16 +4,17 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
-type Option func(map[string]interface{}) error
+type Option func(map[string]string) error
 
 // Load variables from the environment into the provided struct
 // ...
 func Load(obj interface{}, options ...Option) error {
 	// read in any overrides the user wants to do
-	overrides := make(map[string]interface{})
+	overrides := make(map[string]string)
 
 	for _, option := range options {
 		err := option(overrides)
@@ -43,7 +44,7 @@ func Load(obj interface{}, options ...Option) error {
 }
 
 // ...
-func handleStruct(s reflect.Value, overrides map[string]interface{}) error {
+func handleStruct(s reflect.Value, overrides map[string]string) error {
 	for i := 0; i < s.NumField(); i++ {
 		// handle recursive cases
 		field := s.Field(i)
@@ -81,30 +82,25 @@ func handleStruct(s reflect.Value, overrides map[string]interface{}) error {
 }
 
 // ...
-func setField(f reflect.Value, val interface{}) error {
+func setField(f reflect.Value, val string) error {
 	k := f.Kind()
 	switch k {
 	// string
 	case reflect.String:
-		parsed, err := parseString(val)
-		if err != nil {
-			return err
-		}
-
-		f.SetString(parsed)
+		f.SetString(val)
 
 	// int
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := parseInt(val)
+		i, err := strconv.Atoi(val)
 		if err != nil {
 			return err
 		}
 
-		f.SetInt(i)
+		f.SetInt(int64(i))
 
 	// bool
 	case reflect.Bool:
-		b, err := parseBool(val)
+		b, err := strconv.ParseBool(val)
 		if err != nil {
 			return err
 		}
@@ -113,7 +109,7 @@ func setField(f reflect.Value, val interface{}) error {
 
 	// float
 	case reflect.Float32, reflect.Float64:
-		fl, err := parseFloat(val)
+		fl, err := strconv.ParseFloat(val, 64)
 		if err != nil {
 			return err
 		}
