@@ -66,13 +66,23 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 
 		// read the value from the environment
 		envVal, exists := os.LookupEnv(tagVal)
-		_, ok := overrides[tagVal]
+		overrideVal, ok := overrides[tagVal]
 		if !exists && !ok && required {
 			return errors.New("environment variable not found")
 		}
 
+		// priority
+		// 1. Overrides
+		// 2. Environment
+		var val string
+		if ok {
+			val = overrideVal
+		} else {
+			val = envVal
+		}
+
 		// update the affected field
-		err := setField(field, envVal)
+		err := setField(field, val)
 		if err != nil {
 			return err
 		}
