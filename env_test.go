@@ -136,3 +136,128 @@ func TestLoadWithOptional(t *testing.T) {
 	assert.Equal(t, "", s.Opt) // should be empty as it was never set
 	assert.Equal(t, "optionalexists", s.OptEx)
 }
+
+func TestLoadWithNonPointer(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"TEST_VALUE"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
+
+func TestLoadWithNonStruct(t *testing.T) {
+	// Act
+	var s string
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
+
+func TestLoadWithMixedTags(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value     string `env:"TEST_VALUE"`
+		NotTagged string
+	}
+
+	os.Setenv("TEST_VALUE", "test-value")
+	defer os.Unsetenv("TEST_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Nil(t, err)
+	assert.Equal(t, "test-value", s.Value)
+	assert.Equal(t, "", s.NotTagged)
+}
+
+func TestLoadWithMissingValue(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"TEST_VALUE"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
+
+func TestLoadWithUnsupportedType(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value map[string]string `env:"TEST_VALUE"`
+	}
+
+	os.Setenv("TEST_VALUE", "test-value")
+	defer os.Unsetenv("TEST_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
+
+func TestLoadWithInvalidInt(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int `env:"TEST_VALUE"`
+	}
+
+	os.Setenv("TEST_VALUE", "test-value")
+	defer os.Unsetenv("TEST_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
+
+func TestLoadWithInvalidBool(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value bool `env:"TEST_VALUE"`
+	}
+
+	os.Setenv("TEST_VALUE", "test-value")
+	defer os.Unsetenv("TEST_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
+
+func TestLoadWithInvalidFloat(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value float64 `env:"TEST_VALUE"`
+	}
+
+	os.Setenv("TEST_VALUE", "test-value")
+	defer os.Unsetenv("TEST_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
