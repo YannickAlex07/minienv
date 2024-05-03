@@ -16,32 +16,48 @@ func WithOverrides(overrides map[string]string) Option {
 	}
 }
 
-func WithFile(canFail bool, files ...string) Option {
+func WithFile(files ...string) Option {
 	return func(m map[string]string) error {
-		if len(files) == 0 || files == nil {
-			files = []string{".env"}
-		}
+		parseFiles(false, m, files...)
+		return nil
+	}
+}
 
-		for _, file := range files {
-			envs, err := parseEnvFile(file)
-			if err != nil {
-				if !canFail {
-					return err
-				}
-
-				continue
-			}
-
-			for k, v := range envs {
-				m[k] = v
-			}
+func WithRequiredFile(files ...string) Option {
+	return func(m map[string]string) error {
+		err := parseFiles(true, m, files...)
+		if err != nil {
+			return err
 		}
 
 		return nil
 	}
 }
 
-func parseEnvFile(path string) (map[string]string, error) {
+func parseFiles(raiseError bool, m map[string]string, files ...string) error {
+	if len(files) == 0 || files == nil {
+		files = []string{".env"}
+	}
+
+	for _, file := range files {
+		envs, err := parseSingleEnvFile(file)
+		if err != nil {
+			if raiseError {
+				return err
+			}
+
+			continue
+		}
+
+		for k, v := range envs {
+			m[k] = v
+		}
+	}
+
+	return nil
+}
+
+func parseSingleEnvFile(path string) (map[string]string, error) {
 	// open file
 	file, err := os.Open(path)
 	if err != nil {
