@@ -7,7 +7,7 @@
 Add it with the following command:
 
 ```
-go get github.com/YannickAlex07/minienv
+go get github.com/yannickalex07/minienv
 ```
 
 ## Getting Started
