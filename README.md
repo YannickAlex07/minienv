@@ -4,6 +4,12 @@
 
 `minienv` is a minimal libary to work with environment variables. It is heavily inspired by `netflix/go-env` and Pythons `pydantic/BaseSettings` and combines reading from `.env` files and reflection based parsing of environment variables.
 
+Add it with the following command:
+
+```
+go get github.com/YannickAlex07/minienv
+```
+
 ## Getting Started
 
 Using `minienv` is quite simple, just create a struct and annotate it with `env:""` tags:
