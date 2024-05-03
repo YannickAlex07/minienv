@@ -10,8 +10,11 @@ import (
 
 type Option func(map[string]string) error
 
-// Load variables from the environment into the provided struct
-// ...
+// Load variables from the environment into the provided struct.
+// It will try to match environment variables to field that contain an `env` tag.
+//
+// The obj must be a pointer to a struct.
+// Additional options can be supplied for overriding environment variables.
 func Load(obj interface{}, options ...Option) error {
 	// read in any overrides the user wants to do
 	overrides := make(map[string]string)
@@ -43,7 +46,8 @@ func Load(obj interface{}, options ...Option) error {
 	return nil
 }
 
-// ...
+// Handles a struct recursively by iterating over its fields
+// and then setting the field with the appropiate variable if one was found.
 func handleStruct(s reflect.Value, overrides map[string]string) error {
 	for i := 0; i < s.NumField(); i++ {
 		// handle recursive cases
@@ -91,7 +95,8 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 	return nil
 }
 
-// ...
+// Sets a field based on the kind and the provided value
+// This here tries to convert the value to the appropiate type
 func setField(f reflect.Value, val string) error {
 	k := f.Kind()
 	switch k {

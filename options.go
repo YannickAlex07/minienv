@@ -6,6 +6,9 @@ import (
 	"regexp"
 )
 
+// Supply a map of overrides that will take precedence over
+// any other environment variables.
+// The keys are case-sensitive.
 func WithOverrides(overrides map[string]string) Option {
 	return func(m map[string]string) error {
 		for k, v := range overrides {
@@ -16,6 +19,9 @@ func WithOverrides(overrides map[string]string) Option {
 	}
 }
 
+// Supply a list of files to load environment variables from.
+// If any error occures it is ignored. Use WithRequiredFile if you want
+// to fail in case any error is raised.
 func WithFile(files ...string) Option {
 	return func(m map[string]string) error {
 		parseFiles(false, m, files...)
@@ -23,6 +29,8 @@ func WithFile(files ...string) Option {
 	}
 }
 
+// Supply a list of files to load environment variables from.
+// Will raise an error if any error occures.
 func WithRequiredFile(files ...string) Option {
 	return func(m map[string]string) error {
 		err := parseFiles(true, m, files...)
