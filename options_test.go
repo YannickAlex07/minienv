@@ -44,8 +44,8 @@ func TestWithEnvFile(t *testing.T) {
 	// create env file
 	filename := "test.env"
 
-	CreateEnvFile(t, filename, map[string]string{
-		"FROM_FILE": "value",
+	CreateFile(t, filename, []string{
+		"FROM_FILE=value",
 	})
 	defer RemoveFile(t, filename)
 
@@ -68,9 +68,9 @@ func TestWithQuotedEnvFile(t *testing.T) {
 	// create env file
 	filename := "test.env"
 
-	CreateEnvFile(t, filename, map[string]string{
-		"DOUBLE": "\"double\"",
-		"SINGLE": "'single'",
+	CreateFile(t, filename, []string{
+		"DOUBLE=\"double\"",
+		"SINGLE='single'",
 	})
 	defer RemoveFile(t, filename)
 
@@ -128,8 +128,8 @@ func TestWithRequiredEnvFile(t *testing.T) {
 
 	filename := "test.env"
 
-	CreateEnvFile(t, filename, map[string]string{
-		"VALUE": "val",
+	CreateFile(t, filename, []string{
+		"VALUE=val",
 	})
 	defer RemoveFile(t, filename)
 
@@ -150,8 +150,8 @@ func TestWithFileAndDefaultFile(t *testing.T) {
 
 	filename := ".env"
 
-	CreateEnvFile(t, filename, map[string]string{
-		"VALUE": "val",
+	CreateFile(t, filename, []string{
+		"VALUE=val",
 	})
 	defer RemoveFile(t, filename)
 
@@ -174,13 +174,13 @@ func TestWithMultipleFiles(t *testing.T) {
 	filename1 := "one.env"
 	filename2 := "two.env"
 
-	CreateEnvFile(t, filename1, map[string]string{
-		"ONE": "one",
+	CreateFile(t, filename1, []string{
+		"ONE=one",
 	})
 	defer RemoveFile(t, filename1)
 
-	CreateEnvFile(t, filename2, map[string]string{
-		"TWO": "two",
+	CreateFile(t, filename2, []string{
+		"TWO=two",
 	})
 	defer RemoveFile(t, filename2)
 
@@ -192,4 +192,28 @@ func TestWithMultipleFiles(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "one", s.One)
 	assert.Equal(t, "two", s.Two)
+}
+
+func TestWithEmptyLines(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"VAL"`
+	}
+
+	filename := "test.env"
+
+	CreateFile(t, filename, []string{
+		"VAL=val",
+		"",
+		"# comment",
+	})
+	defer RemoveFile(t, filename)
+
+	// Act
+	var s S
+	err := minienv.Load(&s, minienv.WithFile(filename))
+
+	// Assert
+	assert.Nil(t, err)
+	assert.Equal(t, "val", s.Value)
 }

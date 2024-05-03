@@ -7,14 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func CreateEnvFile(t *testing.T, filename string, vars map[string]string) {
+func CreateFile(t *testing.T, filename string, lines []string) {
 	file, err := os.Create(filename)
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
 
-	for k, v := range vars {
-		_, err := file.WriteString(k + "=" + v + "\n")
+	for _, l := range lines {
+		_, err := file.WriteString(l + "\n")
 		if err != nil {
 			assert.FailNow(t, err.Error())
 		}
