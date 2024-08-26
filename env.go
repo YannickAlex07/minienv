@@ -2,6 +2,7 @@ package minienv
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -41,12 +42,12 @@ func Load(obj interface{}, options ...Option) error {
 	// we can only set things if we receive a pointer that points to a struct
 	p := reflect.ValueOf(obj)
 	if p.Kind() != reflect.Ptr {
-		return errors.New("obj must be a pointer")
+		return ErrInvalidInput
 	}
 
 	s := reflect.Indirect(p)
 	if !s.IsValid() || s.Kind() != reflect.Struct {
-		return errors.New("obj must be a struct")
+		return ErrInvalidInput
 	}
 
 	// this will recursively fill the struct
@@ -77,12 +78,18 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 
 		// something went wrong parsing the tag
 		if err != nil {
-			return err
+			return TagParsingError{
+				Field: s.Type().Field(i).Name,
+				Err:   err,
+			}
 		}
 
 		// check if we can actually set the field
 		if !field.IsValid() || !field.CanSet() {
-			return errors.New("field is invalid or cannot be set")
+			return FieldError{
+				Field: s.Type().Field(i).Name,
+				Err:   errors.New("field is not valid or cannot be set"),
+			}
 		}
 
 		// read the value from the environment and from any our overrides
@@ -91,7 +98,10 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 
 		// guard against the cases where we don't have any valeu that we can set
 		if !envExists && !overrideExists && tag.required && tag.defaultValue == "" {
-			return errors.New("no value variable not found")
+			return FieldError{
+				Field: s.Type().Field(i).Name,
+				Err:   errors.New("required field has no value and no default"),
+			}
 		}
 
 		// priority
@@ -110,7 +120,12 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 		// update the affected field
 		err = setField(field, val)
 		if err != nil {
-			return err
+			// we wrap the error for some metadata
+			return CoversionError{
+				Field: s.Type().Field(i).Name,
+				Value: val,
+				Err:   err,
+			}
 		}
 	}
 
@@ -155,7 +170,7 @@ func setField(f reflect.Value, val string) error {
 
 	// anything else is not supported
 	default:
-		return errors.New("unsupported type")
+		return fmt.Errorf("unsupported type: %v", k.String())
 	}
 
 	return nil
@@ -182,9 +197,12 @@ func parseTag(field reflect.StructField) (tag, bool, error) {
 		// tag is optional
 		if splitted[0] == "optional" {
 			required = false
+
 		} else if splitted[0] == "default" {
+
+			// if we have more or less than 2 elements we have an invalid tag
 			if len(splitted) != 2 {
-				return tag{}, true, errors.New("invalid default tag")
+				return tag{}, true, errors.New("default tag does not contain a single value")
 			}
 
 			defaultVal = splitted[1]
