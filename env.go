@@ -10,6 +10,18 @@ import (
 
 type Option func(map[string]string) error
 
+// This struct hold all the metadata about a found "env"-tag for a field
+type tag struct {
+	// This is the name of the env variable we need to look for
+	name string
+
+	// This is a flag that tells us if the variable is required
+	required bool
+
+	// This is the default value for the variable, can be empty and therefore invalid
+	defaultValue string
+}
+
 // Load variables from the environment into the provided struct.
 // It will try to match environment variables to field that contain an `env` tag.
 //
@@ -57,10 +69,15 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 			continue
 		}
 
-		// Check if the tag is present
-		tagVal, found, required := parseTag(s.Type().Field(i))
+		// Check if the tag is present skip if not
+		tag, found, err := parseTag(s.Type().Field(i))
 		if !found {
 			continue
+		}
+
+		// something went wrong parsing the tag
+		if err != nil {
+			return err
 		}
 
 		// check if we can actually set the field
@@ -68,25 +85,30 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 			return errors.New("field is invalid or cannot be set")
 		}
 
-		// read the value from the environment
-		envVal, exists := os.LookupEnv(tagVal)
-		overrideVal, ok := overrides[tagVal]
-		if !exists && !ok && required {
-			return errors.New("environment variable not found")
+		// read the value from the environment and from any our overrides
+		envVal, envExists := os.LookupEnv(tag.name)
+		overrideVal, overrideExists := overrides[tag.name]
+
+		// guard against the cases where we don't have any valeu that we can set
+		if !envExists && !overrideExists && tag.required && tag.defaultValue == "" {
+			return errors.New("no value variable not found")
 		}
 
 		// priority
 		// 1. Overrides
 		// 2. Environment
+		// 3. Default
 		var val string
-		if ok {
+		if overrideExists {
 			val = overrideVal
-		} else {
+		} else if envExists {
 			val = envVal
+		} else {
+			val = tag.defaultValue
 		}
 
 		// update the affected field
-		err := setField(field, val)
+		err = setField(field, val)
 		if err != nil {
 			return err
 		}
@@ -139,25 +161,39 @@ func setField(f reflect.Value, val string) error {
 	return nil
 }
 
-// ...
-func parseTag(field reflect.StructField) (string, bool, bool) {
+// Parses the `env` tag and returns the bundled information about the tag.
+// The first return value is the tag itself, the second return value is a flag indicating if the tag was found
+// and the third return value is an error if the tag was invalid.
+func parseTag(field reflect.StructField) (tag, bool, error) {
 	required := true
+	var defaultVal string
 
 	value, found := field.Tag.Lookup("env")
 	if !found {
-		return "", false, required
+		return tag{}, false, nil
 	}
 
 	// check any tag options
 	parts := strings.Split(value, ",")
 	for _, p := range parts[1:] {
 		trimmed := strings.TrimSpace(p)
+		splitted := strings.Split(trimmed, "=")
 
 		// tag is optional
-		if trimmed == "optional" {
+		if splitted[0] == "optional" {
 			required = false
+		} else if splitted[0] == "default" {
+			if len(splitted) != 2 {
+				return tag{}, true, errors.New("invalid default tag")
+			}
+
+			defaultVal = splitted[1]
 		}
 	}
 
-	return parts[0], true, required
+	return tag{
+		name:         parts[0],
+		required:     required,
+		defaultValue: defaultVal,
+	}, true, nil
 }
