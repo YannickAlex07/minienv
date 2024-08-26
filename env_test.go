@@ -261,3 +261,47 @@ func TestLoadWithInvalidFloat(t *testing.T) {
 	// Assert
 	assert.NotNil(t, err)
 }
+
+func TestLoadWithDefaultString(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"TEST_VALUE,default=Hello"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Nil(t, err)
+	assert.Equal(t, "Hello", s.Value)
+}
+
+func TestLoadWithDefaultInt(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int `env:"TEST_VALUE,default=5"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Nil(t, err)
+	assert.Equal(t, 5, s.Value)
+}
+
+func TestLoadWithDefaultMissingValue(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"TEST_VALUE,default"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NotNil(t, err)
+}
