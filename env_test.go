@@ -183,7 +183,7 @@ func TestLoadWithMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	missingErr := err.(minienv.FieldError)
+	missingErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", missingErr.Field)
 	assert.ErrorContains(t, missingErr, "required field has no value and no default")
 }
@@ -204,9 +204,8 @@ func TestLoadWithUnsupportedType(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.CoversionError)
+	conversionErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", conversionErr.Field)
-	assert.Equal(t, "test-value", conversionErr.Value)
 	assert.ErrorContains(t, conversionErr, "unsupported type")
 }
 
@@ -226,9 +225,8 @@ func TestLoadWithInvalidInt(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.CoversionError)
+	conversionErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", conversionErr.Field)
-	assert.Equal(t, "test-value", conversionErr.Value)
 	assert.ErrorContains(t, conversionErr, "strconv.Atoi: parsing \"test-value\": invalid syntax")
 }
 
@@ -248,9 +246,8 @@ func TestLoadWithInvalidBool(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.CoversionError)
+	conversionErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", conversionErr.Field)
-	assert.Equal(t, "test-value", conversionErr.Value)
 	assert.ErrorContains(t, conversionErr, "parsing \"test-value\": invalid syntax")
 }
 
@@ -270,9 +267,8 @@ func TestLoadWithInvalidFloat(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.CoversionError)
+	conversionErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", conversionErr.Field)
-	assert.Equal(t, "test-value", conversionErr.Value)
 	assert.ErrorContains(t, conversionErr, "parsing \"test-value\": invalid syntax")
 }
 
@@ -319,7 +315,25 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	tagParseErr := err.(minienv.TagParsingError)
+	tagParseErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", tagParseErr.Field)
-	assert.ErrorContains(t, tagParseErr, "default tag does not contain a single value")
+	assert.ErrorContains(t, tagParseErr, "invalid default tag")
+}
+
+func TestLoadWithUnsettableField(t *testing.T) {
+	// Arrange
+	type S struct {
+		_ string `env:"TEST_VALUE"`
+	}
+
+	os.Setenv("TEST_VALUE", "test-value")
+	defer os.Unsetenv("TEST_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "not valid or cannot be set")
 }

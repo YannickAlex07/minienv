@@ -78,7 +78,7 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 
 		// something went wrong parsing the tag
 		if err != nil {
-			return TagParsingError{
+			return LoadError{
 				Field: s.Type().Field(i).Name,
 				Err:   err,
 			}
@@ -86,7 +86,7 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 
 		// check if we can actually set the field
 		if !field.IsValid() || !field.CanSet() {
-			return FieldError{
+			return LoadError{
 				Field: s.Type().Field(i).Name,
 				Err:   errors.New("field is not valid or cannot be set"),
 			}
@@ -98,7 +98,7 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 
 		// guard against the cases where we don't have any valeu that we can set
 		if !envExists && !overrideExists && tag.required && tag.defaultValue == "" {
-			return FieldError{
+			return LoadError{
 				Field: s.Type().Field(i).Name,
 				Err:   errors.New("required field has no value and no default"),
 			}
@@ -121,9 +121,8 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 		err = setField(field, val)
 		if err != nil {
 			// we wrap the error for some metadata
-			return CoversionError{
+			return LoadError{
 				Field: s.Type().Field(i).Name,
-				Value: val,
 				Err:   err,
 			}
 		}
@@ -202,7 +201,7 @@ func parseTag(field reflect.StructField) (tag, bool, error) {
 
 			// if we have more or less than 2 elements we have an invalid tag
 			if len(splitted) != 2 {
-				return tag{}, true, errors.New("default tag does not contain a single value")
+				return tag{}, true, errors.New("invalid default tag")
 			}
 
 			defaultVal = splitted[1]
