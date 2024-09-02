@@ -15,8 +15,10 @@ go get github.com/yannickalex07/minienv
       - [Optional Values](#optional-values)
       - [Default Values](#default-values)
       - [Reading `.env`-Files](#reading-env-files)
+  - [Advanced Usage](#advanced-usage)
       - [Additional Fallback Values](#additional-fallback-values)
       - [Specifying a Custom Prefix](#specifying-a-custom-prefix)
+      - [Custom Error Parsing](#custom-error-parsing)
 
 ## Getting Started
 
@@ -110,6 +112,10 @@ The first argument controls if the files are required to be there or not. `false
 
 **Precedence Order:** Values from `.env`-files have a lower precedence than environment variables, therefore if a key exists in the environment and in a `.env`-file, there value in the environment takes precedence. Also, if a key exists in multiple `.env`-files, the last value takes precedence.
 
+## Advanced Usage
+
+The following features are more advanced, however some of them might still be useful.
+
 #### Additional Fallback Values
 
 Another option that `minienv` provides is to supply custom fallback values that might be sourced from somewhere completely else:
@@ -147,3 +153,30 @@ if err != nil {
 ```
 
 This prefix is also applied to keys from `.env`-files as well as additional fallback values, however only if the key does not already contain the prefix.
+
+#### Custom Error Parsing
+
+If Minienv encounters any issues during loading, it will raise an error to the enduser. These errors are wrapped in custom error objects that allow you to react to them more precisely.
+
+If the input to the `Load()`-function itself is invalid, Minienv will raise the predefined `ErrInvalidInput`-error:
+
+```go
+var e Environment
+err := minienv.Load(e) // e is not a pointer here, therefore invalid
+if err == minienv.ErrInvalidInput {
+    // do something...
+}
+```
+
+Additionally if Minienv fails to load a value into a certain field, for example due to a type mismatch, it will raise an error of type `LoadError`:
+
+```go
+var e Environment
+err := minienv.Load(&e)
+if err != nil {
+    loadErr = err.(minienv.LoadError)
+    // handle load error
+}
+```
+
+The `LoadError` additionally exposes the affected field that failed together with the underlying error.
