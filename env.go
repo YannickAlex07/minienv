@@ -9,7 +9,12 @@ import (
 	"strings"
 )
 
-type Option func(map[string]string) error
+type Option func(*LoadConfig) error
+
+type LoadConfig struct {
+	Prefix string
+	Values map[string]string
+}
 
 // This struct hold all the metadata about a found "env"-tag for a field
 type tag struct {
@@ -30,10 +35,12 @@ type tag struct {
 // Additional options can be supplied for overriding environment variables.
 func Load(obj interface{}, options ...Option) error {
 	// read in any overrides the user wants to do
-	overrides := make(map[string]string)
+	config := LoadConfig{
+		Values: make(map[string]string),
+	}
 
 	for _, option := range options {
-		err := option(overrides)
+		err := option(&config)
 		if err != nil {
 			return err
 		}
@@ -51,7 +58,7 @@ func Load(obj interface{}, options ...Option) error {
 	}
 
 	// this will recursively fill the struct
-	err := handleStruct(s, overrides)
+	err := handleStruct(s, &config)
 	if err != nil {
 		return err
 	}
@@ -61,12 +68,12 @@ func Load(obj interface{}, options ...Option) error {
 
 // Handles a struct recursively by iterating over its fields
 // and then setting the field with the appropiate variable if one was found.
-func handleStruct(s reflect.Value, overrides map[string]string) error {
+func handleStruct(s reflect.Value, config *LoadConfig) error {
 	for i := 0; i < s.NumField(); i++ {
 		// handle recursive cases
 		field := s.Field(i)
 		if field.Kind() == reflect.Struct {
-			handleStruct(field, overrides)
+			handleStruct(field, config)
 			continue
 		}
 
@@ -93,26 +100,31 @@ func handleStruct(s reflect.Value, overrides map[string]string) error {
 		}
 
 		// read the value from the environment and from any our overrides
-		envVal, envExists := os.LookupEnv(tag.name)
-		overrideVal, overrideExists := overrides[tag.name]
+		lookup := tag.name
+		if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
+			lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
+		}
+
+		envVal, envExists := os.LookupEnv(lookup)
+		fallbackVal, fallbackExists := config.Values[lookup]
 
 		// guard against the cases where we don't have any valeu that we can set
-		if !envExists && !overrideExists && tag.required && tag.defaultValue == "" {
+		if !envExists && !fallbackExists && tag.required && tag.defaultValue == "" {
 			return LoadError{
 				Field: s.Type().Field(i).Name,
 				Err:   errors.New("required field has no value and no default"),
 			}
 		}
 
-		// priority
-		// 1. Overrides
-		// 2. Environment
+		// Priority:
+		// 1. Environment
+		// 2. Fallback
 		// 3. Default
 		var val string
-		if overrideExists {
-			val = overrideVal
-		} else if envExists {
+		if envExists {
 			val = envVal
+		} else if fallbackExists {
+			val = fallbackVal
 		} else {
 			val = tag.defaultValue
 		}

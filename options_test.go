@@ -8,34 +8,39 @@ import (
 	"github.com/yannickalex07/minienv"
 )
 
-func TestWithOverrides(t *testing.T) {
+func TestWithFallbackValues(t *testing.T) {
 	// Arrange
 	type S struct {
-		FromOverride string `env:"FROM_OVERRIDE"`
+		FromFallback string `env:"FROM_FALLBACK"`
 		FromEnv      string `env:"FROM_ENV"`
-	}
 
-	os.Setenv("FROM_OVERRIDE", "from-env")
-	defer os.Unsetenv("FROM_OVERRIDE")
+		// The env-value takes precedence over the fallback value
+		FromBoth string `env:"FROM_BOTH"`
+	}
 
 	os.Setenv("FROM_ENV", "from-env")
 	defer os.Unsetenv("FROM_ENV")
 
-	overrides := map[string]string{
-		"FROM_OVERRIDE": "from-override",
+	os.Setenv("FROM_BOTH", "from-both-env")
+	defer os.Unsetenv("FROM_BOTH")
+
+	values := map[string]string{
+		"FROM_FALLBACK": "from-fallback",
+		"FROM_BOTH":     "from-both-fallback",
 	}
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithOverrides(overrides))
+	err := minienv.Load(&s, minienv.WithFallbackValues(values))
 
 	// Assert
 	assert.Nil(t, err)
-	assert.Equal(t, "from-override", s.FromOverride)
+	assert.Equal(t, "from-fallback", s.FromFallback)
 	assert.Equal(t, "from-env", s.FromEnv)
+	assert.Equal(t, "from-both-env", s.FromBoth)
 }
 
-func TestWithEnvFile(t *testing.T) {
+func TestWithFile(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"FROM_FILE"`
@@ -51,14 +56,14 @@ func TestWithEnvFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(filename))
+	err := minienv.Load(&s, minienv.WithFile(false, filename))
 
 	// Assert
 	assert.Nil(t, err)
 	assert.Equal(t, "value", s.Value)
 }
 
-func TestWithQuotedEnvFile(t *testing.T) {
+func TestWithFileAndQuoted(t *testing.T) {
 	// Arrange
 	type S struct {
 		Double string `env:"DOUBLE"`
@@ -76,7 +81,7 @@ func TestWithQuotedEnvFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(filename))
+	err := minienv.Load(&s, minienv.WithFile(false, filename))
 
 	// Assert
 	assert.Nil(t, err)
@@ -84,7 +89,7 @@ func TestWithQuotedEnvFile(t *testing.T) {
 	assert.Equal(t, "single", s.Single)
 }
 
-func TestWithEnvFileAndMissingFile(t *testing.T) {
+func TestWithFileAndMissingOptionalFile(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -97,14 +102,14 @@ func TestWithEnvFileAndMissingFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(filename))
+	err := minienv.Load(&s, minienv.WithFile(false, filename))
 
 	// Assert
 	assert.Nil(t, err)
 	assert.Equal(t, "val", s.Value)
 }
 
-func TestWithRequiredEnvFileAndMissingFile(t *testing.T) {
+func TestWithFileAndMissingRequiredFile(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -114,13 +119,13 @@ func TestWithRequiredEnvFileAndMissingFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithRequiredFile(filename))
+	err := minienv.Load(&s, minienv.WithFile(true, filename))
 
 	// Assert
 	assert.NotNil(t, err)
 }
 
-func TestWithRequiredEnvFile(t *testing.T) {
+func TestWithFileAndRequired(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -135,7 +140,7 @@ func TestWithRequiredEnvFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithRequiredFile(filename))
+	err := minienv.Load(&s, minienv.WithFile(true, filename))
 
 	// Assert
 	assert.Nil(t, err)
@@ -157,7 +162,7 @@ func TestWithFileAndDefaultFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile())
+	err := minienv.Load(&s, minienv.WithFile(false))
 
 	// Assert
 	assert.Nil(t, err)
@@ -186,7 +191,7 @@ func TestWithMultipleFiles(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(filename1, filename2))
+	err := minienv.Load(&s, minienv.WithFile(false, filename1, filename2))
 
 	// Assert
 	assert.Nil(t, err)
@@ -211,9 +216,27 @@ func TestWithEmptyLines(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(filename))
+	err := minienv.Load(&s, minienv.WithFile(false, filename))
 
 	// Assert
 	assert.Nil(t, err)
 	assert.Equal(t, "val", s.Value)
+}
+
+func TestWithPrefix(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"VALUE"`
+	}
+
+	os.Setenv("PREFIX_VALUE", "test-value")
+	defer os.Unsetenv("PREFIX_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s, minienv.WithPrefix("PREFIX_"))
+
+	// Assert
+	assert.Nil(t, err)
+	assert.Equal(t, "test-value", s.Value)
 }
