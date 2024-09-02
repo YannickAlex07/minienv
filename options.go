@@ -6,66 +6,71 @@ import (
 	"regexp"
 )
 
-// Supply a map of overrides that will take precedence over
-// any other environment variables.
+// Supply a map of values that will be used as fallback values if no
+// matching environment variable was found.
 // The keys are case-sensitive.
-func WithOverrides(overrides map[string]string) Option {
-	return func(m map[string]string) error {
-		for k, v := range overrides {
-			m[k] = v
+func WithFallbackValues(values map[string]string) Option {
+	return func(c *LoadConfig) error {
+		for k, v := range values {
+			c.Values[k] = v
 		}
 
 		return nil
 	}
 }
 
-// Supply a list of files to load environment variables from.
-// If any error occures it is ignored. Use WithRequiredFile if you want
-// to fail in case any error is raised.
-func WithFile(files ...string) Option {
-	return func(m map[string]string) error {
-		parseFiles(false, m, files...)
+// Supply a prefix that will be added to all environment variables and fallback values.
+func WithPrefix(prefix string) Option {
+	return func(c *LoadConfig) error {
+		c.Prefix = prefix
 		return nil
 	}
 }
 
-// Supply a list of files to load environment variables from.
-// Will raise an error if any error occures.
-func WithRequiredFile(files ...string) Option {
-	return func(m map[string]string) error {
-		err := parseFiles(true, m, files...)
+// Supply a list of files to load environment variables from that will be
+// uses as fallback values in case no matching env variable was found.
+func WithFile(required bool, files ...string) Option {
+	return func(c *LoadConfig) error {
+		values, err := readEnvFiles(required, files...)
 		if err != nil {
 			return err
 		}
 
+		for k, v := range values {
+			c.Values[k] = v
+		}
+
 		return nil
 	}
 }
 
-func parseFiles(raiseError bool, m map[string]string, files ...string) error {
+// Reads a list of env-files and sets them in the load config
+func readEnvFiles(shouldRaiseError bool, files ...string) (map[string]string, error) {
+	values := make(map[string]string)
+
 	if len(files) == 0 || files == nil {
 		files = []string{".env"}
 	}
 
 	for _, file := range files {
-		envs, err := parseSingleEnvFile(file)
+		envs, err := parseEnvFile(file)
 		if err != nil {
-			if raiseError {
-				return err
+			if shouldRaiseError {
+				return nil, err
 			}
 
 			continue
 		}
 
 		for k, v := range envs {
-			m[k] = v
+			values[k] = v
 		}
 	}
 
-	return nil
+	return values, nil
 }
 
-func parseSingleEnvFile(path string) (map[string]string, error) {
+func parseEnvFile(path string) (map[string]string, error) {
 	// open file
 	file, err := os.Open(path)
 	if err != nil {
