@@ -188,6 +188,26 @@ func TestLoadWithMissingValue(t *testing.T) {
 	assert.ErrorContains(t, missingErr, "required field has no value and no default")
 }
 
+func TestLoadWithMissingNestedValue(t *testing.T) {
+	// Arrange
+	type S struct {
+		N struct {
+			Value string `env:"TEST_VALUE"`
+		}
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	missingErr := err.(minienv.LoadError)
+	assert.Equal(t, "Value", missingErr.Field)
+	assert.ErrorContains(t, missingErr, "required field has no value and no default")
+}
+
 func TestLoadWithUnsupportedType(t *testing.T) {
 	// Arrange
 	type S struct {
