@@ -73,7 +73,11 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 		// handle recursive cases
 		field := s.Field(i)
 		if field.Kind() == reflect.Struct {
-			handleStruct(field, config)
+			err := handleStruct(field, config)
+			if err != nil {
+				return err
+			}
+
 			continue
 		}
 
