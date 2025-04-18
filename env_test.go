@@ -185,7 +185,7 @@ func TestLoadWithMissingValue(t *testing.T) {
 
 	missingErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", missingErr.Field)
-	assert.ErrorContains(t, missingErr, "required field has no value and no default")
+	assert.ErrorContains(t, missingErr, "no value was found for required field with lookup key TEST_VALUE")
 }
 
 func TestLoadWithMissingNestedValue(t *testing.T) {
@@ -205,7 +205,7 @@ func TestLoadWithMissingNestedValue(t *testing.T) {
 
 	missingErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", missingErr.Field)
-	assert.ErrorContains(t, missingErr, "required field has no value and no default")
+	assert.ErrorContains(t, missingErr, "no value was found for required field with lookup key TEST_VALUE")
 }
 
 func TestLoadWithUnsupportedType(t *testing.T) {
@@ -360,11 +360,14 @@ func TestLoadWithUnsettableField(t *testing.T) {
 
 func TestLoadWithSplittableField(t *testing.T) {
 	type S struct {
-		Value []string `env:"TEST_VALUE,split=,"`
+		Str     []string `env:"TEST_VALUE,split=,"`
+		Numbers []int    `env:"TEST_NUMBERS,split=,"`
 	}
 
 	os.Setenv("TEST_VALUE", "test1,test2")
+	os.Setenv("TEST_NUMBERS", "1,2,3")
 	defer os.Unsetenv("TEST_VALUE")
+	defer os.Unsetenv("TEST_NUMBERS")
 
 	// Act
 	var s S
@@ -372,5 +375,6 @@ func TestLoadWithSplittableField(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"test1", "test2"}, s.Value)
+	assert.Equal(t, []string{"test1", "test2"}, s.Str)
+	assert.Equal(t, []int{1, 2, 3}, s.Numbers)
 }

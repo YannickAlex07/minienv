@@ -187,18 +187,19 @@ func setField(f reflect.Value, val string, tag tag.MinienvTag) error {
 		f.SetFloat(fl)
 
 	case reflect.Slice:
-		// we only support string slices for now
-		if f.Type().Elem().Kind() != reflect.String {
-			return fmt.Errorf("unsupported slice type: %v", f.Type().Elem().Kind())
-		}
-
 		// split the string by the splitOn separator
 		vals := strings.Split(val, tag.SplitOn)
 
 		// create the slice
+		elementKind := f.Type().Elem().Kind()
 		slice := reflect.MakeSlice(f.Type(), len(vals), len(vals))
 		for i, v := range vals {
-			slice.Index(i).Set(reflect.ValueOf(v))
+			converted, err := convertPrimitiveValue(v, elementKind)
+			if err != nil {
+				return err
+			}
+
+			slice.Index(i).Set(reflect.ValueOf(converted))
 		}
 
 		// set the field
@@ -210,4 +211,23 @@ func setField(f reflect.Value, val string, tag tag.MinienvTag) error {
 	}
 
 	return nil
+}
+
+func convertPrimitiveValue(val string, kind reflect.Kind) (any, error) {
+	switch kind {
+	case reflect.String:
+		return val, nil
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.Atoi(val)
+
+	case reflect.Bool:
+		return strconv.ParseBool(val)
+
+	case reflect.Float32, reflect.Float64:
+		return strconv.ParseFloat(val, 64)
+
+	default:
+		return nil, fmt.Errorf("unsupported type: %v", kind.String())
+	}
 }
