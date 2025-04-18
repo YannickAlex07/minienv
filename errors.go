@@ -16,3 +16,7 @@ type LoadError struct {
 func (e LoadError) Error() string {
 	return fmt.Sprintf("failed to load field \"%s\": %s", e.Field, e.Err.Error())
 }
+
+func (e LoadError) Unwrap() error {
+	return e.Err
+}

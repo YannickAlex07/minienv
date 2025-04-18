@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/yannickalex07/minienv/internal/tag"
 )
 
 type Option func(*LoadConfig) error
@@ -69,16 +71,19 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 			continue
 		}
 
-		// Check if the tag is present skip if not
-		tag, found, err := parseTag(s.Type().Field(i))
+		// parse the field information
+		structField := s.Type().Field(i)
+
+		// parse the tag
+		value, found := structField.Tag.Lookup("env")
 		if !found {
 			continue
 		}
 
-		// something went wrong parsing the tag
+		tag, err := tag.ParseMinienvTag(value)
 		if err != nil {
 			return LoadError{
-				Field: s.Type().Field(i).Name,
+				Field: structField.Name,
 				Err:   err,
 			}
 		}
@@ -86,47 +91,26 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 		// check if we can actually set the field
 		if !field.IsValid() || !field.CanSet() {
 			return LoadError{
-				Field: s.Type().Field(i).Name,
+				Field: structField.Name,
 				Err:   errors.New("field is not valid or cannot be set"),
 			}
 		}
 
-		// read the value from the environment and from any our overrides
-		lookup := tag.name
-		if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
-			lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
-		}
-
-		envVal, envExists := os.LookupEnv(lookup)
-		fallbackVal, fallbackExists := config.Values[lookup]
-
-		// guard against the cases where we don't have any valeu that we can set
-		if !envExists && !fallbackExists && tag.required && tag.defaultValue == "" {
+		// get the value that we need to set
+		val, err := getValue(config, tag)
+		if err != nil {
 			return LoadError{
-				Field: s.Type().Field(i).Name,
-				Err:   errors.New("required field has no value and no default"),
+				Field: structField.Name,
+				Err:   err,
 			}
 		}
 
-		// Priority:
-		// 1. Environment
-		// 2. Fallback
-		// 3. Default
-		var val string
-		if envExists {
-			val = envVal
-		} else if fallbackExists {
-			val = fallbackVal
-		} else {
-			val = tag.defaultValue
-		}
-
 		// update the affected field
-		err = setField(field, val)
+		err = setField(field, val, tag)
 		if err != nil {
 			// we wrap the error for some metadata
 			return LoadError{
-				Field: s.Type().Field(i).Name,
+				Field: structField.Name,
 				Err:   err,
 			}
 		}
@@ -135,9 +119,40 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 	return nil
 }
 
+func getValue(config *LoadConfig, tag tag.MinienvTag) (string, error) {
+	// read the value from the environment and from any our overrides
+	lookup := tag.LookupName
+	if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
+		lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
+	}
+
+	envVal, envExists := os.LookupEnv(lookup)
+	fallbackVal, fallbackExists := config.Values[lookup]
+
+	// guard against the cases where we don't have any valeu that we can set
+	if !envExists && !fallbackExists && !tag.Optional && tag.Default == "" {
+		return "", fmt.Errorf("no value was found for required field with lookup key %s", lookup)
+	}
+
+	// Priority:
+	// 1. Environment
+	// 2. Fallback
+	// 3. Default
+	var val string
+	if envExists {
+		val = envVal
+	} else if fallbackExists {
+		val = fallbackVal
+	} else {
+		val = tag.Default
+	}
+
+	return val, nil
+}
+
 // Sets a field based on the kind and the provided value
 // This here tries to convert the value to the appropiate type
-func setField(f reflect.Value, val string) error {
+func setField(f reflect.Value, val string, tag tag.MinienvTag) error {
 	k := f.Kind()
 	switch k {
 	// string
@@ -170,6 +185,24 @@ func setField(f reflect.Value, val string) error {
 		}
 
 		f.SetFloat(fl)
+
+	case reflect.Slice:
+		// we only support string slices for now
+		if f.Type().Elem().Kind() != reflect.String {
+			return fmt.Errorf("unsupported slice type: %v", f.Type().Elem().Kind())
+		}
+
+		// split the string by the splitOn separator
+		vals := strings.Split(val, tag.SplitOn)
+
+		// create the slice
+		slice := reflect.MakeSlice(f.Type(), len(vals), len(vals))
+		for i, v := range vals {
+			slice.Index(i).Set(reflect.ValueOf(v))
+		}
+
+		// set the field
+		f.Set(slice)
 
 	// anything else is not supported
 	default:
