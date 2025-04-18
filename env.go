@@ -16,24 +16,12 @@ type LoadConfig struct {
 	Values map[string]string
 }
 
-// This struct hold all the metadata about a found "env"-tag for a field
-type tag struct {
-	// This is the name of the env variable we need to look for
-	name string
-
-	// This is a flag that tells us if the variable is required
-	required bool
-
-	// This is the default value for the variable, can be empty and therefore invalid
-	defaultValue string
-}
-
 // Load variables from the environment into the provided struct.
 // It will try to match environment variables to field that contain an `env` tag.
 //
 // The obj must be a pointer to a struct.
 // Additional options can be supplied for overriding environment variables.
-func Load(obj interface{}, options ...Option) error {
+func Load(obj any, options ...Option) error {
 	// read in any overrides the user wants to do
 	config := LoadConfig{
 		Values: make(map[string]string),
@@ -69,7 +57,7 @@ func Load(obj interface{}, options ...Option) error {
 // Handles a struct recursively by iterating over its fields
 // and then setting the field with the appropiate variable if one was found.
 func handleStruct(s reflect.Value, config *LoadConfig) error {
-	for i := 0; i < s.NumField(); i++ {
+	for i := range s.NumField() {
 		// handle recursive cases
 		field := s.Field(i)
 		if field.Kind() == reflect.Struct {
@@ -189,44 +177,4 @@ func setField(f reflect.Value, val string) error {
 	}
 
 	return nil
-}
-
-// Parses the `env` tag and returns the bundled information about the tag.
-// The first return value is the tag itself, the second return value is a flag indicating if the tag was found
-// and the third return value is an error if the tag was invalid.
-func parseTag(field reflect.StructField) (tag, bool, error) {
-	required := true
-	var defaultVal string
-
-	value, found := field.Tag.Lookup("env")
-	if !found {
-		return tag{}, false, nil
-	}
-
-	// check any tag options
-	parts := strings.Split(value, ",")
-	for _, p := range parts[1:] {
-		trimmed := strings.TrimSpace(p)
-		splitted := strings.Split(trimmed, "=")
-
-		// tag is optional
-		if splitted[0] == "optional" {
-			required = false
-
-		} else if splitted[0] == "default" {
-
-			// if we have more or less than 2 elements we have an invalid tag
-			if len(splitted) != 2 {
-				return tag{}, true, errors.New("invalid default tag")
-			}
-
-			defaultVal = splitted[1]
-		}
-	}
-
-	return tag{
-		name:         parts[0],
-		required:     required,
-		defaultValue: defaultVal,
-	}, true, nil
 }

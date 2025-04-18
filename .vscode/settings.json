@@ -1,0 +1,8 @@
+{
+    "go.lintOnSave": "package",
+    "go.formatTool": "goimports",
+    "go.useLanguageServer": true,
+    "gopls": {
+        "ui.diagnostic.staticcheck": true
+    }
+}

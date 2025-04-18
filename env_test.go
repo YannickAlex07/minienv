@@ -357,3 +357,20 @@ func TestLoadWithUnsettableField(t *testing.T) {
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "not valid or cannot be set")
 }
+
+func TestLoadWithSplittableField(t *testing.T) {
+	type S struct {
+		Value []string `env:"TEST_VALUE,split=,"`
+	}
+
+	os.Setenv("TEST_VALUE", "test1,test2")
+	defer os.Unsetenv("TEST_VALUE")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"test1", "test2"}, s.Value)
+}
