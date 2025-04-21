@@ -337,7 +337,7 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 
 	tagParseErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", tagParseErr.Field)
-	assert.ErrorContains(t, tagParseErr, "invalid default tag")
+	assert.ErrorContains(t, tagParseErr, "default tag is missing = sign")
 }
 
 func TestLoadWithUnsettableField(t *testing.T) {
@@ -358,16 +358,33 @@ func TestLoadWithUnsettableField(t *testing.T) {
 	assert.ErrorContains(t, err, "not valid or cannot be set")
 }
 
-func TestLoadWithSplittableField(t *testing.T) {
+func TestLoadWithSplittableFloatField(t *testing.T) {
 	type S struct {
-		Str     []string `env:"TEST_VALUE,split=,"`
-		Numbers []int    `env:"TEST_NUMBERS,split=,"`
+		Floats        []float64 `env:"TEST_FLOATS,split=,"`
+		FloatDefaults []float64 `env:"TEST_FLOATS_DEF,split=,,default=[1.1,2.2,3.3]"`
 	}
 
-	os.Setenv("TEST_VALUE", "test1,test2")
-	os.Setenv("TEST_NUMBERS", "1,2,3")
-	defer os.Unsetenv("TEST_VALUE")
-	defer os.Unsetenv("TEST_NUMBERS")
+	os.Setenv("TEST_FLOATS", "1.1,2.2,3.3")
+	defer os.Unsetenv("TEST_FLOATS")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, []float64{1.1, 2.2, 3.3}, s.Floats)
+	assert.Equal(t, []float64{1.1, 2.2, 3.3}, s.FloatDefaults)
+}
+
+func TestLoadWithSplittableStringField(t *testing.T) {
+	type S struct {
+		Str        []string `env:"TEST_STR,split=,"`
+		StrDefault []string `env:"TEST_STR_DEF,split=,,default=[test1,test2]"`
+	}
+
+	os.Setenv("TEST_STR", "test1,test2")
+	defer os.Unsetenv("TEST_STR")
 
 	// Act
 	var s S
@@ -376,5 +393,59 @@ func TestLoadWithSplittableField(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"test1", "test2"}, s.Str)
+	assert.Equal(t, []string{"test1", "test2"}, s.StrDefault)
+}
+
+func TestLoadWithSplittableIntField(t *testing.T) {
+	type S struct {
+		Numbers        []int `env:"TEST_NUMBERS,split=,"`
+		NumbersDefault []int `env:"TEST_NUMBERS_DEF,split=,,default=[1,2,3]"`
+	}
+
+	os.Setenv("TEST_NUMBERS", "1,2,3")
+	defer os.Unsetenv("TEST_NUMBERS")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
 	assert.Equal(t, []int{1, 2, 3}, s.Numbers)
+	assert.Equal(t, []int{1, 2, 3}, s.NumbersDefault)
+}
+
+func TestLoadWithSplittableBoolField(t *testing.T) {
+	type S struct {
+		Bools        []bool `env:"TEST_BOOLS,split=,"`
+		BoolsDefault []bool `env:"TEST_BOOLS_DEF,split=,,default=[true,false]"`
+	}
+
+	os.Setenv("TEST_BOOLS", "true,false")
+	defer os.Unsetenv("TEST_BOOLS")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, []bool{true, false}, s.Bools)
+	assert.Equal(t, []bool{true, false}, s.BoolsDefault)
+}
+
+func TestLoadWithSplittableUnsupportedType(t *testing.T) {
+	type S struct {
+		Unsupported []struct{} `env:"TEST_UNSUPPORTED,split=,"`
+	}
+
+	os.Setenv("TEST_UNSUPPORTED", "test1,test2")
+	defer os.Unsetenv("TEST_UNSUPPORTED")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.ErrorContains(t, err, "failed to convert value test1 in slice to type struct")
 }

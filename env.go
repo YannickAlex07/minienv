@@ -196,7 +196,7 @@ func setField(f reflect.Value, val string, tag tag.MinienvTag) error {
 		for i, v := range vals {
 			converted, err := convertPrimitiveValue(v, elementKind)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to convert value %s in slice to type %s: %w", v, elementKind.String(), err)
 			}
 
 			slice.Index(i).Set(reflect.ValueOf(converted))
@@ -213,6 +213,10 @@ func setField(f reflect.Value, val string, tag tag.MinienvTag) error {
 	return nil
 }
 
+// This is pretty similar to the switch above, making a bit redundant.
+// It still makes sense to keep both versions, as the version above uses the concrete
+// `Set<Type>` methods, anyway making the switch required.
+// Maybe this can be refactored in the future to consolidate the switch statements.
 func convertPrimitiveValue(val string, kind reflect.Kind) (any, error) {
 	switch kind {
 	case reflect.String:
