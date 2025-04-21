@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yannickalex07/minienv"
+	"github.com/yannickalex07/minienv/internal/tag"
 )
 
 func TestLoadWithString(t *testing.T) {
@@ -337,6 +338,9 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 
 	tagParseErr := err.(minienv.LoadError)
 	assert.Equal(t, "Value", tagParseErr.Field)
+
+	var tagErr *tag.ParsingError
+	assert.ErrorAs(t, err, &tagErr)
 	assert.ErrorContains(t, tagParseErr, "default tag is missing = sign")
 }
 
