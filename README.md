@@ -12,13 +12,14 @@ go get github.com/yannickalex07/minienv
 ```
 - [Minimal Reflection-Based Environment Management for Go](#minimal-reflection-based-environment-management-for-go)
   - [Getting Started](#getting-started)
-      - [Optional Values](#optional-values)
+  - [Reading Values from External Files](#reading-values-from-external-files)
+  - [Options](#options)
+    - [Optional Values](#optional-values)
+    - [Splitting into Slices](#splitting-into-slices)
       - [Default Values](#default-values)
-      - [Reading `.env`-Files](#reading-env-files)
-  - [Advanced Usage](#advanced-usage)
-      - [Additional Fallback Values](#additional-fallback-values)
       - [Specifying a Custom Prefix](#specifying-a-custom-prefix)
-      - [Custom Error Parsing](#custom-error-parsing)
+      - [Additional Fallback Values](#additional-fallback-values)
+  - [Custom Error Parsing](#custom-error-parsing)
 
 ## Getting Started
 
@@ -37,9 +38,35 @@ if err := minienv.Load(&e); err != nil {
 print(e.Port) // will equal to whatever the PORT env variable is set to
 ```
 
-#### Optional Values
+## Reading Values from External Files
 
-By default every value is required, so if no matching env variables was found or no default is specified, the load will fail with an error.
+`minienv` supports loading variables from `.env` files by using the `WithFile(...)` option:
+
+```go
+type Environment struct {
+    Port int `env:"PORT"`
+}
+
+var e Environment
+
+// `WithFile()` with no arguments will look for a `.env` file in the current directory
+err := minienv.Load(&e, minienv.WithFile(false, "some.env", "extra.env")) 
+if err != nil {
+    // handle error
+}
+```
+
+The first argument controls if the files are required to be there or not. `false` indicates that the load will just continue if the file / files were not found, a `true` on the other hand would raise an error if a file was not found of couldn't be parsed.
+
+**Precedence Order:** Values from `.env`-files have a lower precedence than environment variables, therefore if a key exists in the environment and in a `.env`-file, there value in the environment takes precedence. Also, if a key exists in multiple `.env`-files, the last value takes precedence.
+
+## Options
+
+Minienv supports various options that can be used to control the behavior for a specfiic environment variable.
+
+### Optional Values
+
+By default every value is required, if no matching env variables was found or no default was specified, the load will fail with an error.
 This can be changed by declaring a certain field as optional in the tag:
 
 ```go
@@ -52,12 +79,29 @@ if err := minienv.Load(&e); err != nil {
     // handle error
 }
 
-print(e.Port) // will be the default value of PORT was not set
+print(e.Port) // will simply be default value of int
 ```
+
+### Splitting into Slices
+
+`minienv` supports loading data into slices and automatically splitting them on a specified token:
+
+```go
+type Environment struct {
+    Ports []int `env:"PORT,split=,"` // "," is a valid split
+}
+
+var e Environment
+if err := minienv.Load(&e); err != nil {
+    // handle error
+}
+```
+
+If no token is specified, an empty character will be used for splitting.
 
 #### Default Values
 
-Minienv allows you to specify default values that will be used if no value was found in the environment or specified through a fallback like `WithFile()` or `WithFallbackValues()`.
+Minienv allows you to specify default values that will be used if no value was found in the environment or through other mechanism like `WithFile()`.
 
 ```go
 type Environment struct {
@@ -65,19 +109,33 @@ type Environment struct {
 }
 
 var e Environment
-
-// `WithFile()` with no arguments will look for a `.env` file in the current directory
 err := minienv.Load(&e) 
 if err != nil {
     // handle error
 }
 
-print(e.Port) // will be 8080 if PORT is not set in the environment
+print(e.Port) // will be 8080 if PORT is not set otherwise
 ```
 
-#### Reading `.env`-Files
+When setting a default for a slice, it is possible to wrap the default in `[]`-brackets, which enables the usage of `,`.
 
-`minienv` additionally supports loading variables from `.env` files by using the `WithFile(...)` option:
+```go
+type Environment struct {
+    Ports []int `env:"PORT,split=,,default=[8080,8090]"`
+}
+
+var e Environment
+err := minienv.Load(&e) 
+if err != nil {
+    // handle error
+}
+
+print(e.Ports) // [ 8080, 8090 ]
+```
+
+#### Specifying a Custom Prefix
+
+Another option allows you to set a prefix that will be used during environment lookup. This is applied to **all** environment variables:
 
 ```go
 type Environment struct {
@@ -85,36 +143,14 @@ type Environment struct {
 }
 
 var e Environment
-
-// `WithFile()` with no arguments will look for a `.env` file in the current directory
-err := minienv.Load(&e, minienv.WithFile(false)) 
+err := minienv.Load(&e, minienv.WithPrefix("APP_")) // will cause a lookup for APP_PORT
 if err != nil {
     // handle error
 }
 ```
 
-Alternatively you can specify one or multiple explicit files:
+This prefix is also applied to keys from `.env`-files as well as additional fallback values, however only if the key does not already contain the prefix.
 
-```go
-type Environment struct {
-    Port int `env:"PORT"`
-}
-
-var e Environment
-
-err := minienv.Load(&e, minienv.WithFile(true, "database.env", "extra.env"))
-if err != nil {
-    // handle error
-}
-```
-
-The first argument controls if the files are required to be there or not. `false` indicates that the load will just continue if the file / files were not found, a `true` on the other hand would raise an error if a file was not found of couldn't be parsed.
-
-**Precedence Order:** Values from `.env`-files have a lower precedence than environment variables, therefore if a key exists in the environment and in a `.env`-file, there value in the environment takes precedence. Also, if a key exists in multiple `.env`-files, the last value takes precedence.
-
-## Advanced Usage
-
-The following features are more advanced, however some of them might still be useful.
 
 #### Additional Fallback Values
 
@@ -134,27 +170,11 @@ err := minienv.Load(&e, minienv.WithFallbackValues(values))
 if err != nil {
     // handle error
 }
+
+print(e.Port) // 12345
 ```
 
-#### Specifying a Custom Prefix
-
-Another option allows you to set a prefix that will be used during environment lookup:
-
-```go
-type Environment struct {
-    Port int `env:"PORT"`
-}
-
-var e Environment
-err := minienv.Load(&e, minienv.WithPrefix("APP_")) // will cause a lookup for APP_PORT
-if err != nil {
-    // handle error
-}
-```
-
-This prefix is also applied to keys from `.env`-files as well as additional fallback values, however only if the key does not already contain the prefix.
-
-#### Custom Error Parsing
+## Custom Error Parsing
 
 If Minienv encounters any issues during loading, it will raise an error to the enduser. These errors are wrapped in custom error objects that allow you to react to them more precisely.
 
