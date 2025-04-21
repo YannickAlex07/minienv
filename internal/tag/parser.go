@@ -3,6 +3,7 @@ package tag
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ERROR
@@ -91,23 +92,105 @@ func newParser(tokens []string) *parser {
 	}
 }
 
+func (p *parser) currentToken() string {
+	if p.currentIndex >= len(p.tokens) {
+		return ""
+	}
+
+	return p.tokens[p.currentIndex]
+}
+
+func (p *parser) peek() string {
+	if p.currentIndex+1 >= len(p.tokens) {
+		return ""
+	}
+
+	return p.tokens[p.currentIndex+1]
+}
+
+func (p *parser) parseSplitOption() (string, error) {
+	// consume the split token
+	p.currentIndex++
+
+	// now we should see an = sign
+	if ct := p.currentToken(); ct != "=" {
+		return "", errors.New("invalid split tag")
+	}
+	p.currentIndex++
+
+	// if after the current value there is not a comma or EOF, the split tag itself is invalid
+	if next := p.peek(); next != "" && next != "," {
+		return "", errors.New("invalid split tag")
+	}
+
+	// check if the current token is actually present
+	splitToken := p.currentToken()
+	if splitToken == "" {
+		return "", errors.New("invalid split tag")
+	}
+
+	return splitToken, nil
+}
+
+func (p *parser) parseDefaultOption() (string, error) {
+	// consume the default token
+	p.currentIndex++
+
+	// now we should see an = sign
+	if ct := p.currentToken(); ct != "=" {
+		return "", errors.New("invalid split tag")
+	}
+	p.currentIndex++
+
+	// the token now will be our start token
+	start := p.currentToken()
+	switch start {
+	case "", ",":
+		return "", errors.New("invalid default tag")
+
+	case "[":
+		// if we see a [ we need to consume until we see a ]
+		startingIndex := p.currentIndex
+		for {
+			// if we run out of token before seeing a ], it is invalid
+			if p.currentIndex >= len(p.tokens) {
+				return "", errors.New("invalid default tag")
+			}
+
+			// we found the closeing ], therefore we can break
+			if p.currentToken() == "]" {
+				break
+			}
+
+			// otherwise it is included in the default
+			p.currentIndex++
+		}
+
+		// we will ingore the opening [ and closing ] and return the value
+		val := strings.Join(p.tokens[startingIndex+1:p.currentIndex], "")
+		return val, nil
+	default:
+		// if we see a valid token that is neither a comma nor a [, it is the default value
+		return start, nil
+	}
+}
+
 func (p *parser) Parse() (MinienvTag, error) {
 	tag := MinienvTag{}
 
 	for p.currentIndex < len(p.tokens) {
-		currentToken := p.tokens[p.currentIndex]
+		token := p.tokens[p.currentIndex]
 
 		// the first token is always the lookup name
 		if p.currentIndex == 0 {
-			tag.LookupName = currentToken
+			tag.LookupName = p.tokens[p.currentIndex]
 			p.currentIndex++
 			continue
 		}
 
-		switch currentToken {
+		switch token {
 		case "optional":
 			tag.Optional = true
-			p.currentIndex++
 
 		case "split":
 			val, err := p.parseSplitOption()
@@ -126,98 +209,17 @@ func (p *parser) Parse() (MinienvTag, error) {
 			tag.Default = def
 
 		case ",":
+			// skip commas as they are just seperators
 			p.currentIndex++
+			continue
 
 		default:
 			// if we don't recognize the token, something is invalid
-			return MinienvTag{}, fmt.Errorf("invalid token \"%s\"", currentToken)
+			return MinienvTag{}, fmt.Errorf("invalid token \"%s\"", token)
 		}
+
+		p.currentIndex++ // move to the next token
 	}
 
 	return tag, nil
-}
-
-func (p *parser) parseSplitOption() (string, error) {
-	// cosume the split token itself
-	p.currentIndex++
-
-	// check and consume the = token
-	if p.isEOF() || p.tokens[p.currentIndex] != "=" {
-		return "", errors.New("invalid split tag")
-	}
-	p.currentIndex++
-
-	if p.isEOF() {
-		return "", errors.New("invalid split tag")
-	}
-
-	// if after the current token there is still more and it isn't a ",", the tag is invalid
-	peeked, ok := p.peek(1)
-	if ok && peeked != "," {
-		return "", errors.New("invalid split tag")
-	}
-
-	// our current token will be the split character and we can consume it
-	splitOn := p.tokens[p.currentIndex]
-	p.currentIndex++
-
-	return splitOn, nil
-}
-
-func (p *parser) parseDefaultOption() (string, error) {
-	// consume the default token
-	p.currentIndex++
-
-	// check and consume the =
-	if p.isEOF() || p.tokens[p.currentIndex] != "=" {
-		return "", errors.New("invalid default tag")
-	}
-	p.currentIndex++
-
-	// if we are EOF, this is invalid
-	if p.isEOF() {
-		return "", errors.New("invalid default tag")
-	}
-
-	value := ""
-	switch p.tokens[p.currentIndex] {
-	case ",":
-		// a comma is not a valid default value currently
-		return "", errors.New("invalid default tag")
-
-	case "[":
-		// if the current token is a [, we need to consume until we find a ]
-		// consume the opening bracket
-		p.currentIndex++
-
-		for p.tokens[p.currentIndex] != "]" {
-			value += p.tokens[p.currentIndex]
-			p.currentIndex++
-
-			if p.isEOF() {
-				return "", errors.New("invalid default tag")
-			}
-		}
-
-		// consume the closing bracket
-		p.currentIndex++
-
-	default:
-		value = p.tokens[p.currentIndex]
-		p.currentIndex++
-	}
-
-	return value, nil
-}
-
-func (p *parser) isEOF() bool {
-	return p.currentIndex >= len(p.tokens)
-}
-
-func (p *parser) peek(n int) (string, bool) {
-	if p.currentIndex+n >= len(p.tokens) {
-		return "", false
-	}
-
-	return p.tokens[p.currentIndex+n], true
 }
