@@ -80,7 +80,7 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 			continue
 		}
 
-		tag, err := tag.ParseMinienvTag(value)
+		tag, err := tag.Parse(value)
 		if err != nil {
 			return LoadError{
 				Field: structField.Name,

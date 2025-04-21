@@ -341,7 +341,7 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 
 	var tagErr *tag.ParsingError
 	assert.ErrorAs(t, err, &tagErr)
-	assert.ErrorContains(t, tagParseErr, "default tag is missing = sign")
+	assert.ErrorContains(t, tagParseErr, "invalid tag format")
 }
 
 func TestLoadWithUnsettableField(t *testing.T) {

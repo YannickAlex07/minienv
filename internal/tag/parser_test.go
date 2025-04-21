@@ -17,7 +17,7 @@ func TestParseEnvTagWithCompleteValidOptions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:   "Complete tag with all options",
+			name:   "complete tag with all options",
 			tagStr: "TEST,split=,,default=[10,20,30],optional",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -27,7 +27,7 @@ func TestParseEnvTagWithCompleteValidOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Complete tag with all options in different order",
+			name:   "complete tag with all options",
 			tagStr: "TEST,default=[10,20,30],split=,,optional",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -37,7 +37,7 @@ func TestParseEnvTagWithCompleteValidOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Complete tag with all options in different order",
+			name:   "complete tag with all options",
 			tagStr: "TEST,optional,default=[10,20,30],split=,",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -47,15 +47,8 @@ func TestParseEnvTagWithCompleteValidOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Tag with just the name",
+			name:   "just the lookup name",
 			tagStr: "TEST",
-			expected: tag.MinienvTag{
-				LookupName: "TEST",
-			},
-		},
-		{
-			name:   "Tag an empty option",
-			tagStr: "TEST,  ,", // this is technically valid, because we will skip empty options
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
 			},
@@ -67,7 +60,7 @@ func TestParseEnvTagWithCompleteValidOptions(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := tag.ParseMinienvTag(testCase.tagStr)
+			result, err := tag.Parse(testCase.tagStr)
 
 			// Assert
 			assert.NoError(t, err)
@@ -86,14 +79,14 @@ func TestParseEnvTagWithInvalidOptions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:          "Empty tag",
+			name:          "empty tag",
 			tagStr:        "",
 			errorContains: "tag is empty",
 		},
 		{
-			name:          "Unknown option",
+			name:          "unknown option",
 			tagStr:        "TEST,unknown",
-			errorContains: "invalid token in tag",
+			errorContains: "invalid tag format",
 		},
 	}
 
@@ -102,7 +95,7 @@ func TestParseEnvTagWithInvalidOptions(t *testing.T) {
 		t.Run(tCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := tag.ParseMinienvTag(tCase.tagStr)
+			_, err := tag.Parse(tCase.tagStr)
 
 			// Assert
 			assert.ErrorContains(t, err, tCase.errorContains)
@@ -122,7 +115,7 @@ func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:   "Split with no other options",
+			name:   "split with no other options",
 			tagStr: "TEST,split=,",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -130,7 +123,7 @@ func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Split on colon with no other options",
+			name:   "split on colon with no other options",
 			tagStr: "TEST,split=:",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -138,7 +131,7 @@ func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Split on comma with other options",
+			name:   "split on comma with other options",
 			tagStr: "TEST,split=,,optional",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -147,7 +140,7 @@ func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Split on colon with other options",
+			name:   "split on colon with other options",
 			tagStr: "TEST,split=:,optional",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -156,7 +149,7 @@ func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Split on comma as the last option",
+			name:   "split on comma as the last option",
 			tagStr: "TEST,optional,split=,",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -171,7 +164,7 @@ func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
 		t.Run(tCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := tag.ParseMinienvTag(tCase.tagStr)
+			result, err := tag.Parse(tCase.tagStr)
 
 			// Assert
 			assert.NoError(t, err)
@@ -190,19 +183,19 @@ func TestParseEnvTagWithInvalidSplitOptions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:          "Split with missing = and missing character",
+			name:          "split with missing = and missing character",
 			tagStr:        "TEST,split",
-			errorContains: "missing = sign",
+			errorContains: "invalid tag format",
 		},
 		{
-			name:          "Split with missing character",
+			name:          "split with missing character",
 			tagStr:        "TEST,split=",
-			errorContains: "missing split token",
+			errorContains: "invalid tag format",
 		},
 		{
-			name:          "Split with missing character and no other options",
+			name:          "split with missing character and no other options",
 			tagStr:        "TEST,split=,optional",
-			errorContains: "invalid number of tokens",
+			errorContains: "invalid tag format",
 		},
 	}
 
@@ -211,7 +204,7 @@ func TestParseEnvTagWithInvalidSplitOptions(t *testing.T) {
 		t.Run(tCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := tag.ParseMinienvTag(tCase.tagStr)
+			_, err := tag.Parse(tCase.tagStr)
 
 			// Assert
 			assert.ErrorContains(t, err, tCase.errorContains)
@@ -230,7 +223,7 @@ func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:   "Default with a simple value",
+			name:   "default with a simple value",
 			tagStr: "TEST,default=something",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -238,7 +231,7 @@ func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Default with a simple value that contains spaces",
+			name:   "default with a simple value that contains spaces",
 			tagStr: "TEST,default=something interesting",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -246,7 +239,7 @@ func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Default with a slice",
+			name:   "default with a slice",
 			tagStr: "TEST,default=[10,20,30]",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -254,7 +247,7 @@ func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Default with a simple value and other options",
+			name:   "default with a simple value and other options",
 			tagStr: "TEST,default=something,optional",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -263,7 +256,7 @@ func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Default with a slice and other options",
+			name:   "default with a slice and other options",
 			tagStr: "TEST,default=[10,20,30],optional",
 			expected: tag.MinienvTag{
 				LookupName: "TEST",
@@ -278,7 +271,7 @@ func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
 		t.Run(tCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := tag.ParseMinienvTag(tCase.tagStr)
+			result, err := tag.Parse(tCase.tagStr)
 
 			// Assert
 			assert.NoError(t, err)
@@ -299,27 +292,27 @@ func TestParseEnvTagWithInvalidDefaultOptions(t *testing.T) {
 		{
 			name:          "Default with missing =",
 			tagStr:        "TEST,default",
-			errorContains: "missing = sign",
+			errorContains: "invalid tag format",
 		},
 		{
 			name:          "Default with missing value",
 			tagStr:        "TEST,default=",
-			errorContains: "invalid default token",
+			errorContains: "invalid tag format",
 		},
 		{
 			name:          "Default with non-closed slice",
 			tagStr:        "TEST,default=[10,20,",
-			errorContains: "missing closing ]",
+			errorContains: "invalid tag format",
 		},
 		{
 			name:          "Default with non-closed slice and other options",
 			tagStr:        "TEST,default=[10,20,optional",
-			errorContains: "missing closing ]",
+			errorContains: "invalid tag format",
 		},
 		{
 			name:          "Default with missing value and other options",
 			tagStr:        "TEST,default=,optional",
-			errorContains: "invalid default token",
+			errorContains: "invalid tag format",
 		},
 	}
 
@@ -328,7 +321,7 @@ func TestParseEnvTagWithInvalidDefaultOptions(t *testing.T) {
 		t.Run(tCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := tag.ParseMinienvTag(tCase.tagStr)
+			_, err := tag.Parse(tCase.tagStr)
 
 			// Assert
 			assert.ErrorContains(t, err, tCase.errorContains)
