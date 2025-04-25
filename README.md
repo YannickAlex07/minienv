@@ -62,8 +62,7 @@ The first argument controls if the files are required to be there or not. `false
 
 ## Options
 
-Minienv supports various options that can be used to control the behavior for a specfiic environment variable.
-
+Minienv supports various options that can be used to control the behavior for a specific environment variable.
 ### Optional Values
 
 By default every value is required, if no matching env variables was found or no default was specified, the load will fail with an error.
