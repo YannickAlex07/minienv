@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/yannickalex07/minienv/internal/tag"
 )
 
 type Option func(*LoadConfig) error
@@ -16,24 +18,12 @@ type LoadConfig struct {
 	Values map[string]string
 }
 
-// This struct hold all the metadata about a found "env"-tag for a field
-type tag struct {
-	// This is the name of the env variable we need to look for
-	name string
-
-	// This is a flag that tells us if the variable is required
-	required bool
-
-	// This is the default value for the variable, can be empty and therefore invalid
-	defaultValue string
-}
-
 // Load variables from the environment into the provided struct.
 // It will try to match environment variables to field that contain an `env` tag.
 //
 // The obj must be a pointer to a struct.
 // Additional options can be supplied for overriding environment variables.
-func Load(obj interface{}, options ...Option) error {
+func Load(obj any, options ...Option) error {
 	// read in any overrides the user wants to do
 	config := LoadConfig{
 		Values: make(map[string]string),
@@ -69,7 +59,7 @@ func Load(obj interface{}, options ...Option) error {
 // Handles a struct recursively by iterating over its fields
 // and then setting the field with the appropiate variable if one was found.
 func handleStruct(s reflect.Value, config *LoadConfig) error {
-	for i := 0; i < s.NumField(); i++ {
+	for i := range s.NumField() {
 		// handle recursive cases
 		field := s.Field(i)
 		if field.Kind() == reflect.Struct {
@@ -81,16 +71,19 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 			continue
 		}
 
-		// Check if the tag is present skip if not
-		tag, found, err := parseTag(s.Type().Field(i))
+		// parse the field information
+		structField := s.Type().Field(i)
+
+		// parse the tag
+		value, found := structField.Tag.Lookup("env")
 		if !found {
 			continue
 		}
 
-		// something went wrong parsing the tag
+		tag, err := tag.Parse(value)
 		if err != nil {
 			return LoadError{
-				Field: s.Type().Field(i).Name,
+				Field: structField.Name,
 				Err:   err,
 			}
 		}
@@ -98,47 +91,26 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 		// check if we can actually set the field
 		if !field.IsValid() || !field.CanSet() {
 			return LoadError{
-				Field: s.Type().Field(i).Name,
+				Field: structField.Name,
 				Err:   errors.New("field is not valid or cannot be set"),
 			}
 		}
 
-		// read the value from the environment and from any our overrides
-		lookup := tag.name
-		if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
-			lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
-		}
-
-		envVal, envExists := os.LookupEnv(lookup)
-		fallbackVal, fallbackExists := config.Values[lookup]
-
-		// guard against the cases where we don't have any valeu that we can set
-		if !envExists && !fallbackExists && tag.required && tag.defaultValue == "" {
+		// get the value that we need to set
+		val, err := getValue(config, tag)
+		if err != nil {
 			return LoadError{
-				Field: s.Type().Field(i).Name,
-				Err:   errors.New("required field has no value and no default"),
+				Field: structField.Name,
+				Err:   err,
 			}
 		}
 
-		// Priority:
-		// 1. Environment
-		// 2. Fallback
-		// 3. Default
-		var val string
-		if envExists {
-			val = envVal
-		} else if fallbackExists {
-			val = fallbackVal
-		} else {
-			val = tag.defaultValue
-		}
-
 		// update the affected field
-		err = setField(field, val)
+		err = setField(field, val, tag)
 		if err != nil {
 			// we wrap the error for some metadata
 			return LoadError{
-				Field: s.Type().Field(i).Name,
+				Field: structField.Name,
 				Err:   err,
 			}
 		}
@@ -147,9 +119,40 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 	return nil
 }
 
+func getValue(config *LoadConfig, tag tag.MinienvTag) (string, error) {
+	// read the value from the environment and from any our overrides
+	lookup := tag.LookupName
+	if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
+		lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
+	}
+
+	envVal, envExists := os.LookupEnv(lookup)
+	fallbackVal, fallbackExists := config.Values[lookup]
+
+	// guard against the cases where we don't have any valeu that we can set
+	if !envExists && !fallbackExists && !tag.Optional && tag.Default == "" {
+		return "", fmt.Errorf("no value was found for required field with lookup key %s", lookup)
+	}
+
+	// Priority:
+	// 1. Environment
+	// 2. Fallback
+	// 3. Default
+	var val string
+	if envExists {
+		val = envVal
+	} else if fallbackExists {
+		val = fallbackVal
+	} else {
+		val = tag.Default
+	}
+
+	return val, nil
+}
+
 // Sets a field based on the kind and the provided value
 // This here tries to convert the value to the appropiate type
-func setField(f reflect.Value, val string) error {
+func setField(f reflect.Value, val string, tag tag.MinienvTag) error {
 	k := f.Kind()
 	switch k {
 	// string
@@ -183,6 +186,25 @@ func setField(f reflect.Value, val string) error {
 
 		f.SetFloat(fl)
 
+	case reflect.Slice:
+		// split the string by the splitOn separator
+		vals := strings.Split(val, tag.SplitOn)
+
+		// create the slice
+		elementKind := f.Type().Elem().Kind()
+		slice := reflect.MakeSlice(f.Type(), len(vals), len(vals))
+		for i, v := range vals {
+			converted, err := convertPrimitiveValue(v, elementKind)
+			if err != nil {
+				return fmt.Errorf("failed to convert value %s in slice to type %s: %w", v, elementKind.String(), err)
+			}
+
+			slice.Index(i).Set(reflect.ValueOf(converted))
+		}
+
+		// set the field
+		f.Set(slice)
+
 	// anything else is not supported
 	default:
 		return fmt.Errorf("unsupported type: %v", k.String())
@@ -191,42 +213,25 @@ func setField(f reflect.Value, val string) error {
 	return nil
 }
 
-// Parses the `env` tag and returns the bundled information about the tag.
-// The first return value is the tag itself, the second return value is a flag indicating if the tag was found
-// and the third return value is an error if the tag was invalid.
-func parseTag(field reflect.StructField) (tag, bool, error) {
-	required := true
-	var defaultVal string
+// This is pretty similar to the switch above, making a bit redundant.
+// It still makes sense to keep both versions, as the version above uses the concrete
+// `Set<Type>` methods, anyway making the switch required.
+// Maybe this can be refactored in the future to consolidate the switch statements.
+func convertPrimitiveValue(val string, kind reflect.Kind) (any, error) {
+	switch kind {
+	case reflect.String:
+		return val, nil
 
-	value, found := field.Tag.Lookup("env")
-	if !found {
-		return tag{}, false, nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.Atoi(val)
+
+	case reflect.Bool:
+		return strconv.ParseBool(val)
+
+	case reflect.Float32, reflect.Float64:
+		return strconv.ParseFloat(val, 64)
+
+	default:
+		return nil, fmt.Errorf("unsupported type: %v", kind.String())
 	}
-
-	// check any tag options
-	parts := strings.Split(value, ",")
-	for _, p := range parts[1:] {
-		trimmed := strings.TrimSpace(p)
-		splitted := strings.Split(trimmed, "=")
-
-		// tag is optional
-		if splitted[0] == "optional" {
-			required = false
-
-		} else if splitted[0] == "default" {
-
-			// if we have more or less than 2 elements we have an invalid tag
-			if len(splitted) != 2 {
-				return tag{}, true, errors.New("invalid default tag")
-			}
-
-			defaultVal = splitted[1]
-		}
-	}
-
-	return tag{
-		name:         parts[0],
-		required:     required,
-		defaultValue: defaultVal,
-	}, true, nil
 }
