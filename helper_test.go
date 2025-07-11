@@ -8,6 +8,8 @@ import (
 )
 
 func createFile(t *testing.T, filename string, lines []string) {
+	t.Helper()
+
 	file, err := os.Create(filename)
 	if err != nil {
 		assert.FailNow(t, err.Error())
@@ -22,6 +24,8 @@ func createFile(t *testing.T, filename string, lines []string) {
 }
 
 func removeFile(t *testing.T, filename string) {
+	t.Helper()
+
 	if err := os.Remove(filename); err != nil {
 		assert.FailNow(t, err.Error())
 	}
