@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func CreateFile(t *testing.T, filename string, lines []string) {
+func createFile(t *testing.T, filename string, lines []string) {
+	t.Helper()
+
 	file, err := os.Create(filename)
 	if err != nil {
 		assert.FailNow(t, err.Error())
@@ -21,8 +23,26 @@ func CreateFile(t *testing.T, filename string, lines []string) {
 	}
 }
 
-func RemoveFile(t *testing.T, filename string) {
+func removeFile(t *testing.T, filename string) {
+	t.Helper()
+
 	if err := os.Remove(filename); err != nil {
 		assert.FailNow(t, err.Error())
 	}
+}
+
+func setenv(t *testing.T, key, value string) {
+	t.Helper()
+
+	err := os.Setenv(key, value)
+	if err != nil {
+		t.Fatalf("Failed to set environment variable %s: %v", key, err)
+	}
+
+	t.Cleanup(func() {
+		err := os.Unsetenv(key)
+		if err != nil {
+			t.Errorf("Failed to unset environment variable %s: %v", key, err)
+		}
+	})
 }
