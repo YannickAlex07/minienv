@@ -1,7 +1,6 @@
 package minienv_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,11 +17,8 @@ func TestWithFallbackValues(t *testing.T) {
 		FromBoth string `env:"FROM_BOTH"`
 	}
 
-	os.Setenv("FROM_ENV", "from-env")
-	defer os.Unsetenv("FROM_ENV")
-
-	os.Setenv("FROM_BOTH", "from-both-env")
-	defer os.Unsetenv("FROM_BOTH")
+	setenv(t, "FROM_ENV", "from-env")
+	setenv(t, "FROM_BOTH", "from-both-env")
 
 	values := map[string]string{
 		"FROM_FALLBACK": "from-fallback",
@@ -97,8 +93,7 @@ func TestWithFileAndMissingOptionalFile(t *testing.T) {
 
 	filename := "test.env" // file does not exist
 
-	os.Setenv("VALUE", "val")
-	defer os.Unsetenv("VALUE")
+	setenv(t, "VALUE", "val")
 
 	// Act
 	var s S
@@ -229,8 +224,7 @@ func TestWithPrefix(t *testing.T) {
 		Value string `env:"VALUE"`
 	}
 
-	os.Setenv("PREFIX_VALUE", "test-value")
-	defer os.Unsetenv("PREFIX_VALUE")
+	setenv(t, "PREFIX_VALUE", "test-value")
 
 	// Act
 	var s S
