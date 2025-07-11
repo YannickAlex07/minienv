@@ -1,8 +1,17 @@
 {
-    "go.lintOnSave": "package",
-    "go.formatTool": "goimports",
-    "go.useLanguageServer": true,
-    "gopls": {
-        "ui.diagnostic.staticcheck": true
-    }
+    // LINTING
+    "go.lintOnSave": "workspace",
+    "go.lintTool": "golangci-lint",
+    "go.lintFlags": [
+        "--path-mode=abs",
+    ],
+    // FORMATTING
+    "go.formatTool": "custom",
+    "go.alternateTools": {
+        "customFormatter": "golangci-lint"
+    },
+    "go.formatFlags": [
+        "fmt",
+        "--stdin"
+    ]
 }
