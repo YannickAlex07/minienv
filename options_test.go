@@ -8,8 +8,6 @@ import (
 )
 
 func TestWithFallbackValues(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		FromFallback string `env:"FROM_FALLBACK"`
@@ -39,8 +37,6 @@ func TestWithFallbackValues(t *testing.T) {
 }
 
 func TestWithFile(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Value string `env:"FROM_FILE"`
@@ -64,8 +60,6 @@ func TestWithFile(t *testing.T) {
 }
 
 func TestWithFileAndQuoted(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Double string `env:"DOUBLE"`
@@ -92,8 +86,6 @@ func TestWithFileAndQuoted(t *testing.T) {
 }
 
 func TestWithFileAndMissingOptionalFile(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -113,8 +105,6 @@ func TestWithFileAndMissingOptionalFile(t *testing.T) {
 }
 
 func TestWithFileAndMissingRequiredFile(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -131,8 +121,6 @@ func TestWithFileAndMissingRequiredFile(t *testing.T) {
 }
 
 func TestWithFileAndRequired(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -155,8 +143,6 @@ func TestWithFileAndRequired(t *testing.T) {
 }
 
 func TestWithFileAndDefaultFile(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -179,8 +165,6 @@ func TestWithFileAndDefaultFile(t *testing.T) {
 }
 
 func TestWithMultipleFiles(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		One string `env:"ONE"`
@@ -211,8 +195,6 @@ func TestWithMultipleFiles(t *testing.T) {
 }
 
 func TestWithEmptyLines(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Value string `env:"VAL"`
@@ -237,8 +219,6 @@ func TestWithEmptyLines(t *testing.T) {
 }
 
 func TestWithPrefix(t *testing.T) {
-	t.Parallel()
-
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
