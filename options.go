@@ -2,6 +2,8 @@ package minienv
 
 import (
 	"bufio"
+	"log"
+	"maps"
 	"os"
 	"regexp"
 )
@@ -11,9 +13,7 @@ import (
 // The keys are case-sensitive.
 func WithFallbackValues(values map[string]string) Option {
 	return func(c *LoadConfig) error {
-		for k, v := range values {
-			c.Values[k] = v
-		}
+		maps.Copy(c.Values, values)
 
 		return nil
 	}
@@ -36,9 +36,7 @@ func WithFile(required bool, files ...string) Option {
 			return err
 		}
 
-		for k, v := range values {
-			c.Values[k] = v
-		}
+		maps.Copy(c.Values, values)
 
 		return nil
 	}
@@ -62,9 +60,7 @@ func readEnvFiles(shouldRaiseError bool, files ...string) (map[string]string, er
 			continue
 		}
 
-		for k, v := range envs {
-			values[k] = v
-		}
+		maps.Copy(values, envs)
 	}
 
 	return values, nil
@@ -76,7 +72,11 @@ func parseEnvFile(path string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Failed to close env file %s: %v", path, err)
+		}
+	}()
 
 	overrides := map[string]string{}
 

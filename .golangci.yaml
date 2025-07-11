@@ -3,6 +3,5 @@ linters:
   default: standard
   enable:
     - errname
-    - paralleltest
     - testpackage
     - whitespace

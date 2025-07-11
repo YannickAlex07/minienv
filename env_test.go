@@ -1,7 +1,6 @@
 package minienv_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,8 +14,7 @@ func TestLoadWithString(t *testing.T) {
 		Value string `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "test-string")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test-string")
 
 	// Act
 	var s S
@@ -33,8 +31,7 @@ func TestLoadWithInt(t *testing.T) {
 		Value int `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "3823992")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "3823992")
 
 	// Act
 	var s S
@@ -51,8 +48,7 @@ func TestLoadWithFloat(t *testing.T) {
 		Value float64 `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "34.3243")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "34.3243")
 
 	// Act
 	var s S
@@ -69,8 +65,7 @@ func TestLoadWithBool(t *testing.T) {
 		Value bool `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "true")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "true")
 
 	// Act
 	var s S
@@ -89,8 +84,7 @@ func TestLoadWithSingleNested(t *testing.T) {
 		}
 	}
 
-	os.Setenv("TEST_VALUE", "test")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test")
 
 	// Act
 	var s S
@@ -109,11 +103,8 @@ func TestLoadWithOptional(t *testing.T) {
 		OptEx string `env:"OPT_EX,optional"` // is optional and set
 	}
 
-	os.Setenv("REQ", "required")
-	defer os.Unsetenv("REQ")
-
-	os.Setenv("OPT_EX", "optionalexists")
-	defer os.Unsetenv("OPT_EX")
+	setenv(t, "REQ", "required")
+	setenv(t, "OPT_EX", "optionalexists")
 
 	// Act
 	var s S
@@ -158,8 +149,7 @@ func TestLoadWithMixedTags(t *testing.T) {
 		NotTagged string
 	}
 
-	os.Setenv("TEST_VALUE", "test-value")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test-value")
 
 	// Act
 	var s S
@@ -215,8 +205,7 @@ func TestLoadWithUnsupportedType(t *testing.T) {
 		Value map[string]string `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "test-value")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test-value")
 
 	// Act
 	var s S
@@ -236,8 +225,7 @@ func TestLoadWithInvalidInt(t *testing.T) {
 		Value int `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "test-value")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test-value")
 
 	// Act
 	var s S
@@ -257,8 +245,7 @@ func TestLoadWithInvalidBool(t *testing.T) {
 		Value bool `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "test-value")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test-value")
 
 	// Act
 	var s S
@@ -278,8 +265,7 @@ func TestLoadWithInvalidFloat(t *testing.T) {
 		Value float64 `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "test-value")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test-value")
 
 	// Act
 	var s S
@@ -350,8 +336,7 @@ func TestLoadWithUnsettableField(t *testing.T) {
 		_ string `env:"TEST_VALUE"`
 	}
 
-	os.Setenv("TEST_VALUE", "test-value")
-	defer os.Unsetenv("TEST_VALUE")
+	setenv(t, "TEST_VALUE", "test-value")
 
 	// Act
 	var s S
@@ -368,8 +353,7 @@ func TestLoadWithSplittableFloatField(t *testing.T) {
 		FloatDefaults []float64 `env:"TEST_FLOATS_DEF,split=,,default=[1.1,2.2,3.3]"`
 	}
 
-	os.Setenv("TEST_FLOATS", "1.1,2.2,3.3")
-	defer os.Unsetenv("TEST_FLOATS")
+	setenv(t, "TEST_FLOATS", "1.1,2.2,3.3")
 
 	// Act
 	var s S
@@ -387,8 +371,7 @@ func TestLoadWithSplittableStringField(t *testing.T) {
 		StrDefault []string `env:"TEST_STR_DEF,split=,,default=[test1,test2]"`
 	}
 
-	os.Setenv("TEST_STR", "test1,test2")
-	defer os.Unsetenv("TEST_STR")
+	setenv(t, "TEST_STR", "test1,test2")
 
 	// Act
 	var s S
@@ -406,8 +389,7 @@ func TestLoadWithSplittableIntField(t *testing.T) {
 		NumbersDefault []int `env:"TEST_NUMBERS_DEF,split=,,default=[1,2,3]"`
 	}
 
-	os.Setenv("TEST_NUMBERS", "1,2,3")
-	defer os.Unsetenv("TEST_NUMBERS")
+	setenv(t, "TEST_NUMBERS", "1,2,3")
 
 	// Act
 	var s S
@@ -425,8 +407,7 @@ func TestLoadWithSplittableBoolField(t *testing.T) {
 		BoolsDefault []bool `env:"TEST_BOOLS_DEF,split=,,default=[true,false]"`
 	}
 
-	os.Setenv("TEST_BOOLS", "true,false")
-	defer os.Unsetenv("TEST_BOOLS")
+	setenv(t, "TEST_BOOLS", "true,false")
 
 	// Act
 	var s S
@@ -443,8 +424,7 @@ func TestLoadWithSplittableUnsupportedType(t *testing.T) {
 		Unsupported []struct{} `env:"TEST_UNSUPPORTED,split=,"`
 	}
 
-	os.Setenv("TEST_UNSUPPORTED", "test1,test2")
-	defer os.Unsetenv("TEST_UNSUPPORTED")
+	setenv(t, "TEST_UNSUPPORTED", "test1,test2")
 
 	// Act
 	var s S

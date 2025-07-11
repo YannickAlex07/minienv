@@ -3,7 +3,7 @@
     "go.lintOnSave": "workspace",
     "go.lintTool": "golangci-lint",
     "go.lintFlags": [
-        "--path-mode=abs",
+        "--path-mode=abs"
     ],
     // FORMATTING
     "go.formatTool": "custom",

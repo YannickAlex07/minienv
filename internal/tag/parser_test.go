@@ -8,6 +8,8 @@ import (
 )
 
 func TestParseEnvTagWithCompleteValidOptions(t *testing.T) {
+	t.Parallel()
+
 	// Arrange
 	type testCase struct {
 		name     string
@@ -70,6 +72,8 @@ func TestParseEnvTagWithCompleteValidOptions(t *testing.T) {
 }
 
 func TestParseEnvTagWithInvalidOptions(t *testing.T) {
+	t.Parallel()
+
 	// Arrange
 	type testCase struct {
 		name          string
@@ -106,6 +110,8 @@ func TestParseEnvTagWithInvalidOptions(t *testing.T) {
 // TESTS RELATED TO THE SPLIT OPTION
 
 func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
+	t.Parallel()
+
 	// Arrange
 	type testCase struct {
 		name     string
@@ -174,6 +180,8 @@ func TestParseEnvTagWithValidSplitOptions(t *testing.T) {
 }
 
 func TestParseEnvTagWithInvalidSplitOptions(t *testing.T) {
+	t.Parallel()
+
 	// Arrange
 	type testCase struct {
 		name          string
@@ -214,6 +222,8 @@ func TestParseEnvTagWithInvalidSplitOptions(t *testing.T) {
 
 // TESTS RELATED TO THE DEFAULT OPTION
 func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
+	t.Parallel()
+
 	// Arrange
 	type testCase struct {
 		name     string
@@ -281,6 +291,8 @@ func TestParseEnvTagWithValidDefaultOptions(t *testing.T) {
 }
 
 func TestParseEnvTagWithInvalidDefaultOptions(t *testing.T) {
+	t.Parallel()
+
 	// Arrange
 	type testCase struct {
 		name          string
