@@ -45,10 +45,10 @@ func TestWithFile(t *testing.T) {
 	// create env file
 	filename := "test.env"
 
-	CreateFile(t, filename, []string{
+	createFile(t, filename, []string{
 		"FROM_FILE=value",
 	})
-	defer RemoveFile(t, filename)
+	defer removeFile(t, filename)
 
 	// Act
 	var s S
@@ -69,11 +69,11 @@ func TestWithFileAndQuoted(t *testing.T) {
 	// create env file
 	filename := "test.env"
 
-	CreateFile(t, filename, []string{
+	createFile(t, filename, []string{
 		"DOUBLE=\"double\"",
 		"SINGLE='single'",
 	})
-	defer RemoveFile(t, filename)
+	defer removeFile(t, filename)
 
 	// Act
 	var s S
@@ -128,10 +128,10 @@ func TestWithFileAndRequired(t *testing.T) {
 
 	filename := "test.env"
 
-	CreateFile(t, filename, []string{
+	createFile(t, filename, []string{
 		"VALUE=val",
 	})
-	defer RemoveFile(t, filename)
+	defer removeFile(t, filename)
 
 	// Act
 	var s S
@@ -150,10 +150,10 @@ func TestWithFileAndDefaultFile(t *testing.T) {
 
 	filename := ".env"
 
-	CreateFile(t, filename, []string{
+	createFile(t, filename, []string{
 		"VALUE=val",
 	})
-	defer RemoveFile(t, filename)
+	defer removeFile(t, filename)
 
 	// Act
 	var s S
@@ -174,15 +174,15 @@ func TestWithMultipleFiles(t *testing.T) {
 	filename1 := "one.env"
 	filename2 := "two.env"
 
-	CreateFile(t, filename1, []string{
+	createFile(t, filename1, []string{
 		"ONE=one",
 	})
-	defer RemoveFile(t, filename1)
+	defer removeFile(t, filename1)
 
-	CreateFile(t, filename2, []string{
+	createFile(t, filename2, []string{
 		"TWO=two",
 	})
-	defer RemoveFile(t, filename2)
+	defer removeFile(t, filename2)
 
 	// Act
 	var s S
@@ -202,12 +202,12 @@ func TestWithEmptyLines(t *testing.T) {
 
 	filename := "test.env"
 
-	CreateFile(t, filename, []string{
+	createFile(t, filename, []string{
 		"VAL=val",
 		"",
 		"# comment",
 	})
-	defer RemoveFile(t, filename)
+	defer removeFile(t, filename)
 
 	// Act
 	var s S
