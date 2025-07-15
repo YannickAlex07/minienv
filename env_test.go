@@ -236,6 +236,24 @@ func TestLoadWithEmptyTag(t *testing.T) {
 	assert.ErrorContains(t, conversionErr, "tag string cannot be empty")
 }
 
+func TestLoadWithUnknownTagOption(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value map[string]string `env:"TEST_VALUE,unknown=option"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	conversionErr := err.(minienv.FieldError)
+	assert.Equal(t, "Value", conversionErr.Field)
+	assert.ErrorContains(t, conversionErr, "unknown tag option \"unknown\"")
+}
+
 func TestLoadWithInvalidInt(t *testing.T) {
 	// Arrange
 	type S struct {
@@ -311,6 +329,21 @@ func TestLoadWithDefaultString(t *testing.T) {
 	assert.Equal(t, "Hello", s.Value)
 }
 
+func TestLoadWithDefaultStringIncludingEqualSign(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"TEST_VALUE,default=key=value"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Nil(t, err)
+	assert.Equal(t, "key=value", s.Value)
+}
+
 func TestLoadWithDefaultInt(t *testing.T) {
 	// Arrange
 	type S struct {
@@ -341,7 +374,7 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 
 	parseError := err.(minienv.FieldError)
 	assert.Equal(t, "Value", parseError.Field)
-	assert.ErrorContains(t, parseError, "failed to parse tag")
+	assert.ErrorContains(t, parseError, "default env value cannot be empty")
 }
 
 func TestLoadWithUnsettableField(t *testing.T) {

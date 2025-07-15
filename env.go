@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -35,27 +34,9 @@ func (e FieldError) Unwrap() error {
 // TAG
 
 type tag struct {
-	Name     string
-	Optional bool
-	Default  string
-}
-
-// we compile it once gloabally, so we don't have to do it every time we parse a tag
-var pattern *regexp.Regexp = compilePattern()
-
-// Compile the regex pattern that is used to parse the tag.
-// We will use MustCompile here, as we are sure that this will work.
-func compilePattern() *regexp.Regexp {
-	patterns := []string{
-		`(?P<optional>optional)`,             // optional
-		`default=(?P<default>[\w\d\s\|\.]+)`, // default=<token>
-	}
-
-	// the final pattern will essentially be: <lookup>(,optional|default=<token>)*
-	opStr := strings.Join(patterns, "|")
-	pattern := fmt.Sprintf(`^(?P<lookup>[a-zA-Z_-]+)(?:,(?:%s))*$`, opStr)
-
-	return regexp.MustCompile(pattern)
+	LookupKey string
+	Optional  bool
+	Default   string
 }
 
 func parseTag(tagStr string) (tag, error) {
@@ -63,24 +44,33 @@ func parseTag(tagStr string) (tag, error) {
 		return tag{}, errors.New("tag string cannot be empty")
 	}
 
-	matches := pattern.FindStringSubmatch(tagStr)
-	if matches == nil {
-		return tag{}, fmt.Errorf("failed to parse tag: %s", tagStr)
-	}
+	tagParts := strings.Split(tagStr, ",")
 
-	options := map[string]string{}
-	for i, name := range pattern.SubexpNames() {
-		if name == "" {
+	t := tag{}
+	for i, part := range tagParts {
+		part = strings.TrimSpace(part)
+
+		// first one needs to be the lookup key
+		if i == 0 {
+			t.LookupKey = part
 			continue
 		}
 
-		options[name] = matches[i]
-	}
+		optParts := strings.SplitN(part, "=", 2)
+		switch optParts[0] {
+		case "optional":
+			t.Optional = true
 
-	t := tag{
-		Name:     options["lookup"],
-		Optional: options["optional"] != "",
-		Default:  options["default"],
+		case "default":
+			if len(optParts) < 2 {
+				return tag{}, fmt.Errorf("default env value cannot be empty")
+			}
+
+			t.Default = strings.TrimSpace(optParts[1])
+
+		default:
+			return tag{}, fmt.Errorf("unknown tag option \"%s\"", optParts[0])
+		}
 	}
 
 	return t, nil
@@ -97,7 +87,7 @@ type LoadConfig struct {
 
 func fetchFieldValue(config *LoadConfig, tag tag) (string, error) {
 	// read the value from the environment and from any our overrides
-	lookup := tag.Name
+	lookup := tag.LookupKey
 	if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
 		lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
 	}
@@ -186,7 +176,7 @@ func set(f reflect.Value, val string) error {
 func handleField(config *LoadConfig, field reflect.Value, tagStr string) error {
 	tag, err := parseTag(tagStr)
 	if err != nil {
-		return fmt.Errorf("failed to parse env tag %s: %w", tagStr, err)
+		return fmt.Errorf("failed to parse env tag \"%s\": %w", tagStr, err)
 	}
 
 	val, err := fetchFieldValue(config, tag)
