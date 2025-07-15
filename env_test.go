@@ -339,8 +339,9 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	tagParseErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", tagParseErr.Field)
+	parseError := err.(minienv.FieldError)
+	assert.Equal(t, "Value", parseError.Field)
+	assert.ErrorContains(t, parseError, "failed to parse tag")
 }
 
 func TestLoadWithUnsettableField(t *testing.T) {
