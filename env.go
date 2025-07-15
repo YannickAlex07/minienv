@@ -56,7 +56,7 @@ func parseTag(tagStr string) (tag, error) {
 			continue
 		}
 
-		optParts := strings.Split(part, "=")
+		optParts := strings.SplitN(part, "=", 2)
 		switch optParts[0] {
 		case "optional":
 			t.Optional = true

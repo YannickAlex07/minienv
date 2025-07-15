@@ -329,6 +329,21 @@ func TestLoadWithDefaultString(t *testing.T) {
 	assert.Equal(t, "Hello", s.Value)
 }
 
+func TestLoadWithDefaultStringIncludingEqualSign(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value string `env:"TEST_VALUE,default=key=value"`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Nil(t, err)
+	assert.Equal(t, "key=value", s.Value)
+}
+
 func TestLoadWithDefaultInt(t *testing.T) {
 	// Arrange
 	type S struct {
