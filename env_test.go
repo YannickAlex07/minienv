@@ -218,6 +218,24 @@ func TestLoadWithUnsupportedType(t *testing.T) {
 	assert.ErrorContains(t, conversionErr, "unsupported type")
 }
 
+func TestLoadWithEmptyTag(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value map[string]string `env:""`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	conversionErr := err.(minienv.FieldError)
+	assert.Equal(t, "Value", conversionErr.Field)
+	assert.ErrorContains(t, conversionErr, "tag string cannot be empty")
+}
+
 func TestLoadWithInvalidInt(t *testing.T) {
 	// Arrange
 	type S struct {
