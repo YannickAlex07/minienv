@@ -8,6 +8,8 @@ import (
 	"regexp"
 )
 
+type Option func(*LoadConfig) error
+
 // Supply a map of values that will be used as fallback values if no
 // matching environment variable was found.
 // The keys are case-sensitive.

@@ -5,17 +5,238 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/yannickalex07/minienv/internal/tag"
 )
 
-type Option func(*LoadConfig) error
+// ERRORS
+
+var ErrInvalidInput = fmt.Errorf("input struct is not a struct or a pointer to one")
+
+type FieldError struct {
+	Field string
+	Err   error
+}
+
+func (e FieldError) Error() string {
+	return fmt.Sprintf("failed to load field \"%s\": %s", e.Field, e.Err.Error())
+}
+
+func (e FieldError) Unwrap() error {
+	return e.Err
+}
+
+// TAG
+
+type tag struct {
+	Name     string
+	Optional bool
+	Default  string
+}
+
+// we compile it once gloabally, so we don't have to do it every time we parse a tag
+var pattern *regexp.Regexp = compilePattern()
+
+// Compile the regex pattern that is used to parse the tag.
+// We will use MustCompile here, as we are sure that this will work.
+func compilePattern() *regexp.Regexp {
+	patterns := []string{
+		`(?P<optional>optional)`,             // optional
+		`default=(?P<default>[\w\d\s\|\.]+)`, // default=<token>
+	}
+
+	// the final pattern will essentially be: <lookup>(,optional|default=<token>)*
+	opStr := strings.Join(patterns, "|")
+	pattern := fmt.Sprintf(`^(?P<lookup>[a-zA-Z_-]+)(?:,(?:%s))*$`, opStr)
+
+	return regexp.MustCompile(pattern)
+}
+
+func parseTag(tagStr string) (tag, error) {
+	if tagStr == "" {
+		return tag{}, errors.New("tag string cannot be empty")
+	}
+
+	matches := pattern.FindStringSubmatch(tagStr)
+	if matches == nil {
+		return tag{}, fmt.Errorf("failed to parse tag: %s", tagStr)
+	}
+
+	options := map[string]string{}
+	for i, name := range pattern.SubexpNames() {
+		if name == "" {
+			continue
+		}
+
+		options[name] = matches[i]
+	}
+
+	t := tag{
+		Name:     options["lookup"],
+		Optional: options["optional"] != "",
+		Default:  options["default"],
+	}
+
+	return t, nil
+}
+
+// CONFIG
 
 type LoadConfig struct {
 	Prefix string
 	Values map[string]string
+}
+
+func fetchFieldValue(config *LoadConfig, tag tag) (string, error) {
+	// read the value from the environment and from any our overrides
+	lookup := tag.Name
+	if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
+		lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
+	}
+
+	envVal, envExists := os.LookupEnv(lookup)
+	fallbackVal, fallbackExists := config.Values[lookup]
+
+	// guard against the cases where we don't have any valeu that we can set
+	if !envExists && !fallbackExists && !tag.Optional && tag.Default == "" {
+		return "", fmt.Errorf("no value was found for field with lookup key: %s", lookup)
+	}
+
+	// Priority:
+	// 1. Environment
+	// 2. Fallback
+	// 3. Default
+	var val string
+	if envExists {
+		val = envVal
+	} else if fallbackExists {
+		val = fallbackVal
+	} else {
+		val = tag.Default
+	}
+
+	return val, nil
+}
+
+// Sets a field based on the kind and the provided value
+// This here tries to convert the value to the appropiate type
+func set(f reflect.Value, val string) error {
+	k := f.Kind()
+	switch k {
+	// string
+	case reflect.String:
+		f.SetString(val)
+
+	// int
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i, err := strconv.Atoi(val)
+		if err != nil {
+			return err
+		}
+
+		f.SetInt(int64(i))
+
+	// bool
+	case reflect.Bool:
+		b, err := strconv.ParseBool(val)
+		if err != nil {
+			return err
+		}
+
+		f.SetBool(b)
+
+	// float
+	case reflect.Float32, reflect.Float64:
+		fl, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return err
+		}
+
+		f.SetFloat(fl)
+
+	case reflect.Slice:
+		vals := strings.Split(val, "|")
+
+		// create the slice
+		// elementKind := f.Type().Elem().Kind()
+		slice := reflect.MakeSlice(f.Type(), len(vals), len(vals))
+		for i, v := range vals {
+			if err := set(slice.Index(i), v); err != nil {
+				return fmt.Errorf("failed to set slice element %d: %w", i, err)
+			}
+		}
+
+		// set the field
+		f.Set(slice)
+
+	// anything else is not supported
+	default:
+		return fmt.Errorf("unsupported type: %v", k.String())
+	}
+
+	return nil
+}
+
+func handleField(config *LoadConfig, field reflect.Value, tagStr string) error {
+	tag, err := parseTag(tagStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse env tag %s: %w", tagStr, err)
+	}
+
+	val, err := fetchFieldValue(config, tag)
+	if err != nil {
+		return fmt.Errorf("failed to fetch value: %w", err)
+	}
+
+	err = set(field, val)
+	if err != nil {
+		return fmt.Errorf("failed to set value: %w", err)
+	}
+
+	return nil
+}
+
+// Handles a struct recursively by iterating over its fields
+// and then setting the field with the appropiate variable if one was found.
+func handleStruct(s reflect.Value, config *LoadConfig) error {
+	for i := range s.NumField() {
+		// handle recursive cases
+		field := s.Field(i)
+		if field.Kind() == reflect.Struct {
+			err := handleStruct(field, config)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		// parse the field information
+		structField := s.Type().Field(i)
+		value, found := structField.Tag.Lookup("env")
+		if !found {
+			continue
+		}
+
+		// check if we can actually set the field
+		if !field.IsValid() || !field.CanSet() {
+			return FieldError{
+				Field: structField.Name,
+				Err:   errors.New("field is not valid or cannot be set"),
+			}
+		}
+
+		err := handleField(config, field, value)
+		if err != nil {
+			return FieldError{
+				Field: structField.Name,
+				Err:   err,
+			}
+		}
+	}
+
+	return nil
 }
 
 // Load variables from the environment into the provided struct.
@@ -54,184 +275,4 @@ func Load(obj any, options ...Option) error {
 	}
 
 	return nil
-}
-
-// Handles a struct recursively by iterating over its fields
-// and then setting the field with the appropiate variable if one was found.
-func handleStruct(s reflect.Value, config *LoadConfig) error {
-	for i := range s.NumField() {
-		// handle recursive cases
-		field := s.Field(i)
-		if field.Kind() == reflect.Struct {
-			err := handleStruct(field, config)
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		// parse the field information
-		structField := s.Type().Field(i)
-
-		// parse the tag
-		value, found := structField.Tag.Lookup("env")
-		if !found {
-			continue
-		}
-
-		tag, err := tag.Parse(value)
-		if err != nil {
-			return LoadError{
-				Field: structField.Name,
-				Err:   err,
-			}
-		}
-
-		// check if we can actually set the field
-		if !field.IsValid() || !field.CanSet() {
-			return LoadError{
-				Field: structField.Name,
-				Err:   errors.New("field is not valid or cannot be set"),
-			}
-		}
-
-		// get the value that we need to set
-		val, err := getValue(config, tag)
-		if err != nil {
-			return LoadError{
-				Field: structField.Name,
-				Err:   err,
-			}
-		}
-
-		// update the affected field
-		err = setField(field, val, tag)
-		if err != nil {
-			// we wrap the error for some metadata
-			return LoadError{
-				Field: structField.Name,
-				Err:   err,
-			}
-		}
-	}
-
-	return nil
-}
-
-func getValue(config *LoadConfig, tag tag.MinienvTag) (string, error) {
-	// read the value from the environment and from any our overrides
-	lookup := tag.LookupName
-	if config.Prefix != "" && !strings.HasPrefix(lookup, config.Prefix) {
-		lookup = fmt.Sprintf("%s%s", config.Prefix, lookup)
-	}
-
-	envVal, envExists := os.LookupEnv(lookup)
-	fallbackVal, fallbackExists := config.Values[lookup]
-
-	// guard against the cases where we don't have any valeu that we can set
-	if !envExists && !fallbackExists && !tag.Optional && tag.Default == "" {
-		return "", fmt.Errorf("no value was found for required field with lookup key %s", lookup)
-	}
-
-	// Priority:
-	// 1. Environment
-	// 2. Fallback
-	// 3. Default
-	var val string
-	if envExists {
-		val = envVal
-	} else if fallbackExists {
-		val = fallbackVal
-	} else {
-		val = tag.Default
-	}
-
-	return val, nil
-}
-
-// Sets a field based on the kind and the provided value
-// This here tries to convert the value to the appropiate type
-func setField(f reflect.Value, val string, tag tag.MinienvTag) error {
-	k := f.Kind()
-	switch k {
-	// string
-	case reflect.String:
-		f.SetString(val)
-
-	// int
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := strconv.Atoi(val)
-		if err != nil {
-			return err
-		}
-
-		f.SetInt(int64(i))
-
-	// bool
-	case reflect.Bool:
-		b, err := strconv.ParseBool(val)
-		if err != nil {
-			return err
-		}
-
-		f.SetBool(b)
-
-	// float
-	case reflect.Float32, reflect.Float64:
-		fl, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return err
-		}
-
-		f.SetFloat(fl)
-
-	case reflect.Slice:
-		// split the string by the splitOn separator
-		vals := strings.Split(val, tag.SplitOn)
-
-		// create the slice
-		elementKind := f.Type().Elem().Kind()
-		slice := reflect.MakeSlice(f.Type(), len(vals), len(vals))
-		for i, v := range vals {
-			converted, err := convertPrimitiveValue(v, elementKind)
-			if err != nil {
-				return fmt.Errorf("failed to convert value %s in slice to type %s: %w", v, elementKind.String(), err)
-			}
-
-			slice.Index(i).Set(reflect.ValueOf(converted))
-		}
-
-		// set the field
-		f.Set(slice)
-
-	// anything else is not supported
-	default:
-		return fmt.Errorf("unsupported type: %v", k.String())
-	}
-
-	return nil
-}
-
-// This is pretty similar to the switch above, making a bit redundant.
-// It still makes sense to keep both versions, as the version above uses the concrete
-// `Set<Type>` methods, anyway making the switch required.
-// Maybe this can be refactored in the future to consolidate the switch statements.
-func convertPrimitiveValue(val string, kind reflect.Kind) (any, error) {
-	switch kind {
-	case reflect.String:
-		return val, nil
-
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.Atoi(val)
-
-	case reflect.Bool:
-		return strconv.ParseBool(val)
-
-	case reflect.Float32, reflect.Float64:
-		return strconv.ParseFloat(val, 64)
-
-	default:
-		return nil, fmt.Errorf("unsupported type: %v", kind.String())
-	}
 }
