@@ -1,3 +1,5 @@
+// Package minienv provides a way to load environment variables into a struct.
+// It supports options for fallback values, prefixes, and reading from env-files.
 package minienv
 
 import (
@@ -12,8 +14,11 @@ import (
 
 // ERRORS
 
+// ErrInvalidInput is returned when the input to Load is not a pointer to a struct.
 var ErrInvalidInput = fmt.Errorf("input struct is not a struct or a pointer to one")
 
+// FieldError is returned when a particular field cannot be loaded.
+// It contains the field name and the underlying error that caused the failure.
 type FieldError struct {
 	Field string
 	Err   error
@@ -83,6 +88,8 @@ func parseTag(tagStr string) (tag, error) {
 
 // CONFIG
 
+// LoadConfig holds the configuration for loading environment variables.
+// Can be configured using the provided options or by writing your own option.
 type LoadConfig struct {
 	Prefix string
 	Values map[string]string
@@ -120,7 +127,6 @@ func fetchFieldValue(config *LoadConfig, tag tag) (string, error) {
 }
 
 // Sets a field based on the kind and the provided value
-// This here tries to convert the value to the appropiate type
 func set(f reflect.Value, val string) error {
 	k := f.Kind()
 	switch k {
@@ -155,11 +161,10 @@ func set(f reflect.Value, val string) error {
 
 		f.SetFloat(fl)
 
+	// slice
 	case reflect.Slice:
 		vals := strings.Split(val, "|")
 
-		// create the slice
-		// elementKind := f.Type().Elem().Kind()
 		slice := reflect.MakeSlice(f.Type(), len(vals), len(vals))
 		for i, v := range vals {
 			if err := set(slice.Index(i), v); err != nil {
@@ -167,10 +172,9 @@ func set(f reflect.Value, val string) error {
 			}
 		}
 
-		// set the field
 		f.Set(slice)
 
-	// anything else is not supported
+	// anything else is currently not supported
 	default:
 		return fmt.Errorf("unsupported type: %v", k.String())
 	}
@@ -178,6 +182,7 @@ func set(f reflect.Value, val string) error {
 	return nil
 }
 
+// handleField handles parsing the tag for a field, fetching a value for it and setting it.
 func handleField(config *LoadConfig, field reflect.Value, tagStr string) error {
 	tag, err := parseTag(tagStr)
 	if err != nil {
@@ -197,8 +202,8 @@ func handleField(config *LoadConfig, field reflect.Value, tagStr string) error {
 	return nil
 }
 
-// Handles a struct recursively by iterating over its fields
-// and then setting the field with the appropiate variable if one was found.
+// handleStruct recursively handles a struct, parsing its fields, checking if the have
+// the `env` struct tag set and then passing them to the handleField function.
 func handleStruct(s reflect.Value, config *LoadConfig) error {
 	for i := range s.NumField() {
 		// handle recursive cases
@@ -239,11 +244,12 @@ func handleStruct(s reflect.Value, config *LoadConfig) error {
 	return nil
 }
 
-// Load variables from the environment into the provided struct.
-// It will try to match environment variables to field that contain an `env` tag.
+// Load loads environment variables into a struct based on the `env` struct tag.
+// It can be configured using the provided options or by writing your own option.
+// The struct must be a pointer to a struct, otherwise an error will be returned.
 //
-// The obj must be a pointer to a struct.
-// Additional options can be supplied for overriding environment variables.
+// The function will recursively fill the struct with values from the environment variables,
+// using the `env` struct tag to determine which environment variable to use for each field.
 func Load(obj any, options ...Option) error {
 	// read in any overrides the user wants to do
 	config := LoadConfig{
