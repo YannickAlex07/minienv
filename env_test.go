@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yannickalex07/minienv"
-	"github.com/yannickalex07/minienv/internal/tag"
 )
 
 func TestLoadWithString(t *testing.T) {
@@ -174,9 +173,9 @@ func TestLoadWithMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	missingErr := err.(minienv.LoadError)
+	missingErr := err.(minienv.FieldError)
 	assert.Equal(t, "Value", missingErr.Field)
-	assert.ErrorContains(t, missingErr, "no value was found for required field with lookup key TEST_VALUE")
+	assert.ErrorContains(t, missingErr, "no value was found for field with lookup key: TEST_VALUE")
 }
 
 func TestLoadWithMissingNestedValue(t *testing.T) {
@@ -194,9 +193,9 @@ func TestLoadWithMissingNestedValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	missingErr := err.(minienv.LoadError)
+	missingErr := err.(minienv.FieldError)
 	assert.Equal(t, "Value", missingErr.Field)
-	assert.ErrorContains(t, missingErr, "no value was found for required field with lookup key TEST_VALUE")
+	assert.ErrorContains(t, missingErr, "no value was found for field with lookup key: TEST_VALUE")
 }
 
 func TestLoadWithUnsupportedType(t *testing.T) {
@@ -214,9 +213,27 @@ func TestLoadWithUnsupportedType(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.LoadError)
+	conversionErr := err.(minienv.FieldError)
 	assert.Equal(t, "Value", conversionErr.Field)
 	assert.ErrorContains(t, conversionErr, "unsupported type")
+}
+
+func TestLoadWithEmptyTag(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value map[string]string `env:""`
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	conversionErr := err.(minienv.FieldError)
+	assert.Equal(t, "Value", conversionErr.Field)
+	assert.ErrorContains(t, conversionErr, "tag string cannot be empty")
 }
 
 func TestLoadWithInvalidInt(t *testing.T) {
@@ -234,7 +251,7 @@ func TestLoadWithInvalidInt(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.LoadError)
+	conversionErr := err.(minienv.FieldError)
 	assert.Equal(t, "Value", conversionErr.Field)
 	assert.ErrorContains(t, conversionErr, "strconv.Atoi: parsing \"test-value\": invalid syntax")
 }
@@ -254,7 +271,7 @@ func TestLoadWithInvalidBool(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.LoadError)
+	conversionErr := err.(minienv.FieldError)
 	assert.Equal(t, "Value", conversionErr.Field)
 	assert.ErrorContains(t, conversionErr, "parsing \"test-value\": invalid syntax")
 }
@@ -274,7 +291,7 @@ func TestLoadWithInvalidFloat(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.LoadError)
+	conversionErr := err.(minienv.FieldError)
 	assert.Equal(t, "Value", conversionErr.Field)
 	assert.ErrorContains(t, conversionErr, "parsing \"test-value\": invalid syntax")
 }
@@ -322,12 +339,9 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	tagParseErr := err.(minienv.LoadError)
-	assert.Equal(t, "Value", tagParseErr.Field)
-
-	var tagErr *tag.ParsingError
-	assert.ErrorAs(t, err, &tagErr)
-	assert.ErrorContains(t, tagParseErr, "invalid tag format")
+	parseError := err.(minienv.FieldError)
+	assert.Equal(t, "Value", parseError.Field)
+	assert.ErrorContains(t, parseError, "failed to parse tag")
 }
 
 func TestLoadWithUnsettableField(t *testing.T) {
@@ -349,11 +363,11 @@ func TestLoadWithUnsettableField(t *testing.T) {
 
 func TestLoadWithSplittableFloatField(t *testing.T) {
 	type S struct {
-		Floats        []float64 `env:"TEST_FLOATS,split=,"`
-		FloatDefaults []float64 `env:"TEST_FLOATS_DEF,split=,,default=[1.1,2.2,3.3]"`
+		Floats        []float64 `env:"TEST_FLOATS"`
+		FloatDefaults []float64 `env:"TEST_FLOATS_DEF,default=1.1|2.2|3.3"`
 	}
 
-	setenv(t, "TEST_FLOATS", "1.1,2.2,3.3")
+	setenv(t, "TEST_FLOATS", "1.1|2.2|3.3")
 
 	// Act
 	var s S
@@ -367,11 +381,11 @@ func TestLoadWithSplittableFloatField(t *testing.T) {
 
 func TestLoadWithSplittableStringField(t *testing.T) {
 	type S struct {
-		Str        []string `env:"TEST_STR,split=,"`
-		StrDefault []string `env:"TEST_STR_DEF,split=,,default=[test1,test2]"`
+		Str        []string `env:"TEST_STR"`
+		StrDefault []string `env:"TEST_STR_DEF,default=test1|test2"`
 	}
 
-	setenv(t, "TEST_STR", "test1,test2")
+	setenv(t, "TEST_STR", "test1|test2")
 
 	// Act
 	var s S
@@ -385,11 +399,11 @@ func TestLoadWithSplittableStringField(t *testing.T) {
 
 func TestLoadWithSplittableIntField(t *testing.T) {
 	type S struct {
-		Numbers        []int `env:"TEST_NUMBERS,split=,"`
-		NumbersDefault []int `env:"TEST_NUMBERS_DEF,split=,,default=[1,2,3]"`
+		Numbers        []int `env:"TEST_NUMBERS"`
+		NumbersDefault []int `env:"TEST_NUMBERS_DEF,default=1|2|3"`
 	}
 
-	setenv(t, "TEST_NUMBERS", "1,2,3")
+	setenv(t, "TEST_NUMBERS", "1|2|3")
 
 	// Act
 	var s S
@@ -403,11 +417,11 @@ func TestLoadWithSplittableIntField(t *testing.T) {
 
 func TestLoadWithSplittableBoolField(t *testing.T) {
 	type S struct {
-		Bools        []bool `env:"TEST_BOOLS,split=,"`
-		BoolsDefault []bool `env:"TEST_BOOLS_DEF,split=,,default=[true,false]"`
+		Bools        []bool `env:"TEST_BOOLS"`
+		BoolsDefault []bool `env:"TEST_BOOLS_DEF,default=true|false"`
 	}
 
-	setenv(t, "TEST_BOOLS", "true,false")
+	setenv(t, "TEST_BOOLS", "true|false")
 
 	// Act
 	var s S
@@ -421,15 +435,15 @@ func TestLoadWithSplittableBoolField(t *testing.T) {
 
 func TestLoadWithSplittableUnsupportedType(t *testing.T) {
 	type S struct {
-		Unsupported []struct{} `env:"TEST_UNSUPPORTED,split=,"`
+		Unsupported []struct{} `env:"TEST_UNSUPPORTED"`
 	}
 
-	setenv(t, "TEST_UNSUPPORTED", "test1,test2")
+	setenv(t, "TEST_UNSUPPORTED", "test1|test2")
 
 	// Act
 	var s S
 	err := minienv.Load(&s)
 
 	// Assert
-	assert.ErrorContains(t, err, "failed to convert value test1 in slice to type struct")
+	assert.ErrorContains(t, err, "failed to set slice element 0: unsupported type: struct")
 }

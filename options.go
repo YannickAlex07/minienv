@@ -8,9 +8,12 @@ import (
 	"regexp"
 )
 
-// Supply a map of values that will be used as fallback values if no
-// matching environment variable was found.
-// The keys are case-sensitive.
+// The Option func can be used to configure the loading behavior of minienv.
+type Option func(*LoadConfig) error
+
+// WithFallbackValues allows you to set fallback values for environment variables.
+// These will be applied if no environment variable is found.
+// If no fallback is sepcified either, the default value will be used.
 func WithFallbackValues(values map[string]string) Option {
 	return func(c *LoadConfig) error {
 		maps.Copy(c.Values, values)
@@ -19,7 +22,10 @@ func WithFallbackValues(values map[string]string) Option {
 	}
 }
 
-// Supply a prefix that will be added to all environment variables and fallback values.
+// WithPrefix allows you to set a prefix for the environment variables.
+// Each environment variable will be prefixed with this value.
+// If a specified value within the struct tag already has the specified prefix,
+// it will not be prefixed again.
 func WithPrefix(prefix string) Option {
 	return func(c *LoadConfig) error {
 		c.Prefix = prefix
@@ -27,8 +33,7 @@ func WithPrefix(prefix string) Option {
 	}
 }
 
-// Supply a list of files to load environment variables from that will be
-// uses as fallback values in case no matching env variable was found.
+// WithFile allows you to specify a list of environment files that should be read.
 func WithFile(required bool, files ...string) Option {
 	return func(c *LoadConfig) error {
 		values, err := readEnvFiles(required, files...)
