@@ -164,6 +164,31 @@ func set(f reflect.Value, val string) error {
 
 		f.Set(slice)
 
+	case reflect.Map:
+		vals := strings.Split(val, "|")
+
+		m := reflect.MakeMap(f.Type())
+		for _, v := range vals {
+			parts := strings.SplitN(v, ":", 2)
+			if len(parts) != 2 {
+				return fmt.Errorf("map value must be in the format key:value, got: %s", v)
+			}
+
+			key := reflect.New(f.Type().Key())
+			if err := set(key.Elem(), parts[0]); err != nil {
+				return fmt.Errorf("failed to set map key \"%v\": %w", parts[0], err)
+			}
+
+			val := reflect.New(f.Type().Elem())
+			if err := set(val.Elem(), parts[1]); err != nil {
+				return fmt.Errorf("failed to set map value for key \"%s\": %w", parts[0], err)
+			}
+
+			m.SetMapIndex(key.Elem(), val.Elem())
+		}
+
+		f.Set(m)
+
 	// anything else is currently not supported
 	default:
 		return fmt.Errorf("unsupported type: %v", k.String())
