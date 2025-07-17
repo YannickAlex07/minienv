@@ -201,7 +201,7 @@ func TestLoadWithMissingNestedValue(t *testing.T) {
 func TestLoadWithUnsupportedType(t *testing.T) {
 	// Arrange
 	type S struct {
-		Value map[string]string `env:"TEST_VALUE"`
+		Value complex128 `env:"TEST_VALUE"`
 	}
 
 	setenv(t, "TEST_VALUE", "test-value")
@@ -394,7 +394,7 @@ func TestLoadWithUnsettableField(t *testing.T) {
 	assert.ErrorContains(t, err, "not valid or cannot be set")
 }
 
-func TestLoadWithSplittableFloatField(t *testing.T) {
+func TestLoadSliceWithFloat(t *testing.T) {
 	type S struct {
 		Floats        []float64 `env:"TEST_FLOATS"`
 		FloatDefaults []float64 `env:"TEST_FLOATS_DEF,default=1.1|2.2|3.3"`
@@ -412,7 +412,7 @@ func TestLoadWithSplittableFloatField(t *testing.T) {
 	assert.Equal(t, []float64{1.1, 2.2, 3.3}, s.FloatDefaults)
 }
 
-func TestLoadWithSplittableStringField(t *testing.T) {
+func TestLoadSliceWithString(t *testing.T) {
 	type S struct {
 		Str        []string `env:"TEST_STR"`
 		StrDefault []string `env:"TEST_STR_DEF,default=test1|test2"`
@@ -430,7 +430,7 @@ func TestLoadWithSplittableStringField(t *testing.T) {
 	assert.Equal(t, []string{"test1", "test2"}, s.StrDefault)
 }
 
-func TestLoadWithSplittableIntField(t *testing.T) {
+func TestLoadSliceWithInt(t *testing.T) {
 	type S struct {
 		Numbers        []int `env:"TEST_NUMBERS"`
 		NumbersDefault []int `env:"TEST_NUMBERS_DEF,default=1|2|3"`
@@ -448,7 +448,7 @@ func TestLoadWithSplittableIntField(t *testing.T) {
 	assert.Equal(t, []int{1, 2, 3}, s.NumbersDefault)
 }
 
-func TestLoadWithSplittableBoolField(t *testing.T) {
+func TestLoadSliceWithBool(t *testing.T) {
 	type S struct {
 		Bools        []bool `env:"TEST_BOOLS"`
 		BoolsDefault []bool `env:"TEST_BOOLS_DEF,default=true|false"`
@@ -466,7 +466,7 @@ func TestLoadWithSplittableBoolField(t *testing.T) {
 	assert.Equal(t, []bool{true, false}, s.BoolsDefault)
 }
 
-func TestLoadWithSplittableUnsupportedType(t *testing.T) {
+func TestLoadSliceWithUnsupportedType(t *testing.T) {
 	type S struct {
 		Unsupported []struct{} `env:"TEST_UNSUPPORTED"`
 	}
@@ -479,4 +479,172 @@ func TestLoadWithSplittableUnsupportedType(t *testing.T) {
 
 	// Assert
 	assert.ErrorContains(t, err, "failed to set slice element 0: unsupported type: struct")
+}
+
+func TestLoadMapWithString(t *testing.T) {
+	type S struct {
+		MapField map[string]string `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "test1:value1|test2:value2")
+
+	expected := map[string]string{
+		"test1": "value1",
+		"test2": "value2",
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, s.MapField)
+}
+
+func TestLoadMapWithInt(t *testing.T) {
+	type S struct {
+		MapField map[int]int `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "1:1|2:2")
+
+	expected := map[int]int{
+		1: 1,
+		2: 2,
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, s.MapField)
+}
+
+func TestLoadMapWithFloat(t *testing.T) {
+	type S struct {
+		MapField map[float64]float64 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "1.1:1.1|2.2:2.2")
+
+	expected := map[float64]float64{
+		1.1: 1.1,
+		2.2: 2.2,
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, s.MapField)
+}
+
+func TestLoadMapWithBool(t *testing.T) {
+	type S struct {
+		MapField map[bool]bool `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "true:true|false:false")
+
+	expected := map[bool]bool{
+		true:  true,
+		false: false,
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, s.MapField)
+}
+
+func TestLoadMapWithUnsupportedType(t *testing.T) {
+	type S struct {
+		MapField map[string]struct{} `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "test1:{}|test2:{}")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "failed to set map value for key \"test1\": unsupported type: struct")
+}
+
+func TestLoadMapWithDuplicatedKey(t *testing.T) {
+	type S struct {
+		MapField map[string]string `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "test:first|test:second")
+
+	expected := map[string]string{
+		"test": "second",
+	}
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, s.MapField)
+}
+
+func TestLoadMapWithWrongValueType(t *testing.T) {
+	type S struct {
+		MapField map[string]int `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "key:value")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "failed to set map value for key \"key\": strconv.Atoi: parsing \"value\": invalid syntax")
+}
+
+func TestLoadMapWithWrongKeyType(t *testing.T) {
+	type S struct {
+		MapField map[int]string `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "key:value")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "failed to set map key \"key\": strconv.Atoi: parsing \"key\": invalid syntax")
+}
+
+func TestLoadMapWithMissingValue(t *testing.T) {
+	type S struct {
+		MapField map[string]string `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "key")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "map value must be in the format key:value, got: key")
 }
