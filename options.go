@@ -33,42 +33,24 @@ func WithPrefix(prefix string) Option {
 	}
 }
 
-// WithFile allows you to specify a list of environment files that should be read.
-func WithFile(required bool, files ...string) Option {
+// WithEnvFile can be used to read environment values from an .env file.
+// If required is set to true, the file must exist. If it is set to false,
+// the file is optional and will not cause an error if it does not exist.
+func WithEnvFile(file string, required bool) Option {
 	return func(c *LoadConfig) error {
-		values, err := readEnvFiles(required, files...)
+		envs, err := parseEnvFile(file)
 		if err != nil {
+			if os.IsNotExist(err) && !required {
+				return nil
+			}
+
 			return err
 		}
 
-		maps.Copy(c.Values, values)
+		maps.Copy(c.Values, envs)
 
 		return nil
 	}
-}
-
-// Reads a list of env-files and sets them in the load config
-func readEnvFiles(shouldRaiseError bool, files ...string) (map[string]string, error) {
-	values := make(map[string]string)
-
-	if len(files) == 0 || files == nil {
-		files = []string{".env"}
-	}
-
-	for _, file := range files {
-		envs, err := parseEnvFile(file)
-		if err != nil {
-			if shouldRaiseError {
-				return nil, err
-			}
-
-			continue
-		}
-
-		maps.Copy(values, envs)
-	}
-
-	return values, nil
 }
 
 func parseEnvFile(path string) (map[string]string, error) {
