@@ -36,7 +36,7 @@ func TestWithFallbackValues(t *testing.T) {
 	assert.Equal(t, "from-both-env", s.FromBoth)
 }
 
-func TestWithFile(t *testing.T) {
+func TestWithEnvFile(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"FROM_FILE"`
@@ -52,14 +52,14 @@ func TestWithFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(false, filename))
+	err := minienv.Load(&s, minienv.WithEnvFile(filename, false))
 
 	// Assert
 	assert.Nil(t, err)
 	assert.Equal(t, "value", s.Value)
 }
 
-func TestWithFileAndQuoted(t *testing.T) {
+func TestWithEnvFileAndQuoted(t *testing.T) {
 	// Arrange
 	type S struct {
 		Double string `env:"DOUBLE"`
@@ -77,7 +77,7 @@ func TestWithFileAndQuoted(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(false, filename))
+	err := minienv.Load(&s, minienv.WithEnvFile(filename, false))
 
 	// Assert
 	assert.Nil(t, err)
@@ -85,7 +85,7 @@ func TestWithFileAndQuoted(t *testing.T) {
 	assert.Equal(t, "single", s.Single)
 }
 
-func TestWithFileAndMissingOptionalFile(t *testing.T) {
+func TestWithEnvFileAndMissingOptionalFile(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -97,14 +97,14 @@ func TestWithFileAndMissingOptionalFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(false, filename))
+	err := minienv.Load(&s, minienv.WithEnvFile(filename, false))
 
 	// Assert
 	assert.Nil(t, err)
 	assert.Equal(t, "val", s.Value)
 }
 
-func TestWithFileAndMissingRequiredFile(t *testing.T) {
+func TestWithEnvFileAndMissingRequiredFile(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -114,13 +114,13 @@ func TestWithFileAndMissingRequiredFile(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(true, filename))
+	err := minienv.Load(&s, minienv.WithEnvFile(filename, true))
 
 	// Assert
 	assert.NotNil(t, err)
 }
 
-func TestWithFileAndRequired(t *testing.T) {
+func TestWithEnvFileAndRequired(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"VALUE"`
@@ -135,66 +135,14 @@ func TestWithFileAndRequired(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(true, filename))
+	err := minienv.Load(&s, minienv.WithEnvFile(filename, true))
 
 	// Assert
 	assert.Nil(t, err)
 	assert.Equal(t, "val", s.Value)
 }
 
-func TestWithFileAndDefaultFile(t *testing.T) {
-	// Arrange
-	type S struct {
-		Value string `env:"VALUE"`
-	}
-
-	filename := ".env"
-
-	createFile(t, filename, []string{
-		"VALUE=val",
-	})
-	defer removeFile(t, filename)
-
-	// Act
-	var s S
-	err := minienv.Load(&s, minienv.WithFile(false))
-
-	// Assert
-	assert.Nil(t, err)
-	assert.Equal(t, "val", s.Value)
-}
-
-func TestWithMultipleFiles(t *testing.T) {
-	// Arrange
-	type S struct {
-		One string `env:"ONE"`
-		Two string `env:"TWO"`
-	}
-
-	filename1 := "one.env"
-	filename2 := "two.env"
-
-	createFile(t, filename1, []string{
-		"ONE=one",
-	})
-	defer removeFile(t, filename1)
-
-	createFile(t, filename2, []string{
-		"TWO=two",
-	})
-	defer removeFile(t, filename2)
-
-	// Act
-	var s S
-	err := minienv.Load(&s, minienv.WithFile(false, filename1, filename2))
-
-	// Assert
-	assert.Nil(t, err)
-	assert.Equal(t, "one", s.One)
-	assert.Equal(t, "two", s.Two)
-}
-
-func TestWithEmptyLines(t *testing.T) {
+func TestWithEnvFileAndEmptyLines(t *testing.T) {
 	// Arrange
 	type S struct {
 		Value string `env:"VAL"`
@@ -211,7 +159,7 @@ func TestWithEmptyLines(t *testing.T) {
 
 	// Act
 	var s S
-	err := minienv.Load(&s, minienv.WithFile(false, filename))
+	err := minienv.Load(&s, minienv.WithEnvFile(filename, false))
 
 	// Assert
 	assert.Nil(t, err)
