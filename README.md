@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/YannickAlex07/minienv/branch/main/graph/badge.svg?token=VHXLuQARRp)](https://codecov.io/gh/YannickAlex07/minienv)
 [![Go Reference](https://pkg.go.dev/badge/github.com/yannickalex07/minienv.svg)](https://pkg.go.dev/github.com/yannickalex07/minienv)
 
-`minienv` is a minimal libary that makes it easy to work with environment variables in Go. It is heavily inspired by [`netflix/go-env`](https://github.com/Netflix/go-env) and Pythons [`pydantic/BaseSettings`](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) and combines reflection based parsing of environment variables with reading from `.env` files.
+`minienv` is a minimal library that makes it easy to work with environment variables in Go. It is heavily inspired by [`netflix/go-env`](https://github.com/Netflix/go-env) and Pythons [`pydantic/BaseSettings`](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) and combines reflection based parsing of environment variables with reading from `.env` files.
 
 Add it with the following command:
 
@@ -44,7 +44,7 @@ The package supports specifying values as optional or providing a default for th
 ```go
 type Environment struct {
     Value int `env:"VALUE,optional"` // will be set to the zero value if not provided
-    Other string `env:OTHER,default=test"` // will be set to "test" if not provided
+    Other string `env:"OTHER,default=test"` // will be set to "test" if not provided
 }
 ```
 
