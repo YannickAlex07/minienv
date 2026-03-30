@@ -31,6 +31,20 @@ func (e FieldError) Unwrap() error {
 	return e.Err
 }
 
+// LoadErrors is a collection of errors that can occur during the loading process.
+type LoadErrors []error
+
+func (e LoadErrors) Error() string {
+	var sb strings.Builder
+
+	sb.WriteString("failed to load config with the following errors:\n")
+	for _, err := range e {
+		sb.WriteString("- " + err.Error() + "\n")
+	}
+
+	return sb.String()
+}
+
 // TAG
 
 type tag struct {
@@ -85,6 +99,107 @@ type LoadConfig struct {
 	Values map[string]string
 }
 
+// LOADING
+
+// Load loads environment variables into a struct based on the `env` struct tag.
+// It can be configured using the provided options or by writing your own option.
+// The struct must be a pointer to a struct, otherwise an error will be returned.
+//
+// The function will recursively fill the struct with values from the environment variables,
+// using the `env` struct tag to determine which environment variable to use for each field.
+func Load(obj any, options ...Option) error {
+	// read in any overrides and update all config values based on the provided options
+	config := LoadConfig{
+		Values: make(map[string]string),
+	}
+
+	for _, option := range options {
+		err := option(&config)
+		if err != nil {
+			return err
+		}
+	}
+
+	// we can only set things if we receive a pointer that points to a struct
+	p := reflect.ValueOf(obj)
+	if p.Kind() != reflect.Pointer {
+		return ErrInvalidInput
+	}
+
+	s := reflect.Indirect(p)
+	if !s.IsValid() || s.Kind() != reflect.Struct {
+		return ErrInvalidInput
+	}
+
+	// this will recursively fill the struct
+	errs := handleStruct(s, &config)
+	if len(errs) > 0 {
+		return LoadErrors(errs)
+	}
+
+	return nil
+}
+
+// handleStruct recursively handles a struct, parsing its fields, checking if the have
+// the `env` struct tag set and then passing them to the handleField function.
+func handleStruct(s reflect.Value, config *LoadConfig) []error {
+	var errs []error
+
+	for i := range s.NumField() {
+		// handle recursive cases
+		field := s.Field(i)
+		if field.Kind() == reflect.Struct {
+			errs = append(errs, handleStruct(field, config)...)
+			continue
+		}
+
+		// parse the field information
+		structField := s.Type().Field(i)
+		value, found := structField.Tag.Lookup("env")
+		if !found {
+			continue
+		}
+
+		// check if we can actually set the field
+		if !field.IsValid() || !field.CanSet() {
+			errs = append(errs, FieldError{
+				Field: structField.Name,
+				Err:   errors.New("field is not valid or cannot be set"),
+			})
+		}
+
+		err := handleField(config, field, value)
+		if err != nil {
+			errs = append(errs, FieldError{
+				Field: structField.Name,
+				Err:   err,
+			})
+		}
+	}
+
+	return errs
+}
+
+// handleField handles parsing the tag for a field, fetching a value for it and setting it.
+func handleField(config *LoadConfig, field reflect.Value, tagStr string) error {
+	tag, err := parseTag(tagStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse env tag \"%s\": %w", tagStr, err)
+	}
+
+	val, err := fetchFieldValue(config, tag)
+	if err != nil {
+		return fmt.Errorf("failed to fetch value: %w", err)
+	}
+
+	err = set(field, val)
+	if err != nil {
+		return fmt.Errorf("failed to set value: %w", err)
+	}
+
+	return nil
+}
+
 func fetchFieldValue(config *LoadConfig, tag tag) (string, error) {
 	// read the value from the environment and from any our overrides
 	lookup := tag.LookupKey
@@ -114,32 +229,6 @@ func fetchFieldValue(config *LoadConfig, tag tag) (string, error) {
 	}
 
 	return val, nil
-}
-
-// return the bit size for the given int kind, or 0 if it's just a regular int
-func intBitSize(k reflect.Kind) int {
-	switch k {
-	case reflect.Int8:
-		return 8
-	case reflect.Int16:
-		return 16
-	case reflect.Int32:
-		return 32
-	case reflect.Int64:
-		return 64
-	default:
-		return 0
-	}
-}
-
-// return the bit size for the given float kind
-func floatBitSize(k reflect.Kind) int {
-	switch k {
-	case reflect.Float32:
-		return 32
-	default:
-		return 64
-	}
 }
 
 // Sets a field based on the kind and the provided value
@@ -225,103 +314,28 @@ func set(f reflect.Value, val string) error {
 	return nil
 }
 
-// handleField handles parsing the tag for a field, fetching a value for it and setting it.
-func handleField(config *LoadConfig, field reflect.Value, tagStr string) error {
-	tag, err := parseTag(tagStr)
-	if err != nil {
-		return fmt.Errorf("failed to parse env tag \"%s\": %w", tagStr, err)
+// return the bit size for the given int kind, or 0 if it's just a regular int
+func intBitSize(k reflect.Kind) int {
+	switch k {
+	case reflect.Int8:
+		return 8
+	case reflect.Int16:
+		return 16
+	case reflect.Int32:
+		return 32
+	case reflect.Int64:
+		return 64
+	default:
+		return 0
 	}
-
-	val, err := fetchFieldValue(config, tag)
-	if err != nil {
-		return fmt.Errorf("failed to fetch value: %w", err)
-	}
-
-	err = set(field, val)
-	if err != nil {
-		return fmt.Errorf("failed to set value: %w", err)
-	}
-
-	return nil
 }
 
-// handleStruct recursively handles a struct, parsing its fields, checking if the have
-// the `env` struct tag set and then passing them to the handleField function.
-func handleStruct(s reflect.Value, config *LoadConfig) error {
-	for i := range s.NumField() {
-		// handle recursive cases
-		field := s.Field(i)
-		if field.Kind() == reflect.Struct {
-			err := handleStruct(field, config)
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		// parse the field information
-		structField := s.Type().Field(i)
-		value, found := structField.Tag.Lookup("env")
-		if !found {
-			continue
-		}
-
-		// check if we can actually set the field
-		if !field.IsValid() || !field.CanSet() {
-			return FieldError{
-				Field: structField.Name,
-				Err:   errors.New("field is not valid or cannot be set"),
-			}
-		}
-
-		err := handleField(config, field, value)
-		if err != nil {
-			return FieldError{
-				Field: structField.Name,
-				Err:   err,
-			}
-		}
+// return the bit size for the given float kind
+func floatBitSize(k reflect.Kind) int {
+	switch k {
+	case reflect.Float32:
+		return 32
+	default:
+		return 64
 	}
-
-	return nil
-}
-
-// Load loads environment variables into a struct based on the `env` struct tag.
-// It can be configured using the provided options or by writing your own option.
-// The struct must be a pointer to a struct, otherwise an error will be returned.
-//
-// The function will recursively fill the struct with values from the environment variables,
-// using the `env` struct tag to determine which environment variable to use for each field.
-func Load(obj any, options ...Option) error {
-	// read in any overrides the user wants to do
-	config := LoadConfig{
-		Values: make(map[string]string),
-	}
-
-	for _, option := range options {
-		err := option(&config)
-		if err != nil {
-			return err
-		}
-	}
-
-	// we can only set things if we receive a pointer that points to a struct
-	p := reflect.ValueOf(obj)
-	if p.Kind() != reflect.Ptr {
-		return ErrInvalidInput
-	}
-
-	s := reflect.Indirect(p)
-	if !s.IsValid() || s.Kind() != reflect.Struct {
-		return ErrInvalidInput
-	}
-
-	// this will recursively fill the struct
-	err := handleStruct(s, &config)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
