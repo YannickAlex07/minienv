@@ -116,6 +116,32 @@ func fetchFieldValue(config *LoadConfig, tag tag) (string, error) {
 	return val, nil
 }
 
+// return the bit size for the given int kind, or 0 if it's not an int kind
+func intBitSize(k reflect.Kind) int {
+	switch k {
+	case reflect.Int8:
+		return 8
+	case reflect.Int16:
+		return 16
+	case reflect.Int32:
+		return 32
+	case reflect.Int64:
+		return 64
+	default:
+		return 0
+	}
+}
+
+// return the bit size for the given float kind, or 0 if it's not a float kind
+func floatBitSize(k reflect.Kind) int {
+	switch k {
+	case reflect.Float32:
+		return 32
+	default:
+		return 64
+	}
+}
+
 // Sets a field based on the kind and the provided value
 func set(f reflect.Value, val string) error {
 	k := f.Kind()
@@ -126,12 +152,13 @@ func set(f reflect.Value, val string) error {
 
 	// int
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := strconv.Atoi(val)
+		bitSize := intBitSize(k)
+		i, err := strconv.ParseInt(val, 10, bitSize)
 		if err != nil {
 			return err
 		}
 
-		f.SetInt(int64(i))
+		f.SetInt(i)
 
 	// bool
 	case reflect.Bool:
@@ -144,7 +171,8 @@ func set(f reflect.Value, val string) error {
 
 	// float
 	case reflect.Float32, reflect.Float64:
-		fl, err := strconv.ParseFloat(val, 64)
+		bitSize := floatBitSize(k)
+		fl, err := strconv.ParseFloat(val, bitSize)
 		if err != nil {
 			return err
 		}
