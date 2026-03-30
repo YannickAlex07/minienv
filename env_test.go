@@ -41,6 +41,171 @@ func TestLoadWithInt(t *testing.T) {
 	assert.Equal(t, 3823992, s.Value)
 }
 
+func TestLoadWithInt8(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int8 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "127")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+	assert.NoError(t, err)
+
+	// Assert
+	assert.Equal(t, int8(127), s.Value)
+}
+
+func TestLoadWithInt8Overflow(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int8 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "128")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	conversionErr := err.(minienv.FieldError)
+	assert.Equal(t, "Value", conversionErr.Field)
+	assert.ErrorContains(t, conversionErr, "out of range")
+}
+
+func TestLoadWithInt16(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int16 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "32767")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+	assert.NoError(t, err)
+
+	// Assert
+	assert.Equal(t, int16(32767), s.Value)
+}
+
+func TestLoadWithInt16Overflow(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int16 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "32768")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	conversionErr := err.(minienv.FieldError)
+	assert.Equal(t, "Value", conversionErr.Field)
+	assert.ErrorContains(t, conversionErr, "out of range")
+}
+
+func TestLoadWithInt32(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int32 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "2147483647")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+	assert.NoError(t, err)
+
+	// Assert
+	assert.Equal(t, int32(2147483647), s.Value)
+}
+
+func TestLoadWithInt32Overflow(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int32 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "2147483648")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	conversionErr := err.(minienv.FieldError)
+	assert.Equal(t, "Value", conversionErr.Field)
+	assert.ErrorContains(t, conversionErr, "out of range")
+}
+
+func TestLoadWithInt64(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value int64 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "9223372036854775807")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+	assert.NoError(t, err)
+
+	// Assert
+	assert.Equal(t, int64(9223372036854775807), s.Value)
+}
+
+func TestLoadWithFloat32(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value float32 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "3.14")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+	assert.NoError(t, err)
+
+	// Assert
+	assert.InDelta(t, float32(3.14), s.Value, 0.001)
+}
+
+func TestLoadWithFloat32Overflow(t *testing.T) {
+	// Arrange
+	type S struct {
+		Value float32 `env:"TEST_VALUE"`
+	}
+
+	setenv(t, "TEST_VALUE", "3.4e+39")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	conversionErr := err.(minienv.FieldError)
+	assert.Equal(t, "Value", conversionErr.Field)
+	assert.ErrorContains(t, conversionErr, "out of range")
+}
+
 func TestLoadWithFloat(t *testing.T) {
 	// Arrange
 	type S struct {
@@ -271,7 +436,7 @@ func TestLoadWithInvalidInt(t *testing.T) {
 
 	conversionErr := err.(minienv.FieldError)
 	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "strconv.Atoi: parsing \"test-value\": invalid syntax")
+	assert.ErrorContains(t, conversionErr, "strconv.ParseInt: parsing \"test-value\": invalid syntax")
 }
 
 func TestLoadWithInvalidBool(t *testing.T) {
@@ -614,7 +779,7 @@ func TestLoadMapWithWrongValueType(t *testing.T) {
 
 	// Assert
 	assert.Error(t, err)
-	assert.ErrorContains(t, err, "failed to set map value for key \"key\": strconv.Atoi: parsing \"value\": invalid syntax")
+	assert.ErrorContains(t, err, "failed to set map value for key \"key\": strconv.ParseInt: parsing \"value\": invalid syntax")
 }
 
 func TestLoadMapWithWrongKeyType(t *testing.T) {
@@ -630,7 +795,7 @@ func TestLoadMapWithWrongKeyType(t *testing.T) {
 
 	// Assert
 	assert.Error(t, err)
-	assert.ErrorContains(t, err, "failed to set map key \"key\": strconv.Atoi: parsing \"key\": invalid syntax")
+	assert.ErrorContains(t, err, "failed to set map key \"key\": strconv.ParseInt: parsing \"key\": invalid syntax")
 }
 
 func TestLoadMapWithMissingValue(t *testing.T) {
