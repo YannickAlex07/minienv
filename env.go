@@ -116,7 +116,7 @@ func fetchFieldValue(config *LoadConfig, tag tag) (string, error) {
 	return val, nil
 }
 
-// return the bit size for the given int kind, or 0 if it's not an int kind
+// return the bit size for the given int kind, or 0 if it's just a regular int
 func intBitSize(k reflect.Kind) int {
 	switch k {
 	case reflect.Int8:
@@ -132,7 +132,7 @@ func intBitSize(k reflect.Kind) int {
 	}
 }
 
-// return the bit size for the given float kind, or 0 if it's not a float kind
+// return the bit size for the given float kind
 func floatBitSize(k reflect.Kind) int {
 	switch k {
 	case reflect.Float32:
