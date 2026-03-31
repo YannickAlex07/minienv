@@ -142,15 +142,24 @@ if err == minienv.ErrInvalidInput {
 }
 ```
 
-Additionally if Minienv fails to load a value into a certain field, for example due to a type mismatch, it will raise an error of type `FieldError`:
+If Minienv fails to load one or more fields, for example due to a type mismatch or a missing value, it collects all errors and returns them as a `LoadErrors` slice (_note: Prior to v1.3, the first encountered `FieldError` was returned immediately_). You can use `errors.As` to inspect the errors:
 
 ```go
 var e Environment
 err := minienv.Load(&e)
 if err != nil {
-    fieldErr = err.(minienv.FieldError)
-    // handle load error
+    var loadErrors minienv.LoadErrors
+    if errors.As(err, &loadErrors) {
+
+        // check each field error on its own
+        for _, e := range loadErrors {
+            var fieldErr minienv.FieldError
+            if errors.As(e, &fieldErr) {
+                fmt.Printf("field %s: %s\n", fieldErr.Field, fieldErr.Err)
+            }
+        }
+    }
 }
 ```
 
-The `FieldError` additionally exposes the affected field that failed together with the underlying error.
+Each `FieldError` exposes the affected field name and the underlying error.
