@@ -45,6 +45,10 @@ func (e LoadErrors) Error() string {
 	return sb.String()
 }
 
+func (e LoadErrors) Unwrap() []error {
+	return []error(e)
+}
+
 // TAG
 
 type tag struct {
@@ -166,6 +170,8 @@ func handleStruct(s reflect.Value, config *LoadConfig) []error {
 				Field: structField.Name,
 				Err:   errors.New("field is not valid or cannot be set"),
 			})
+
+			continue
 		}
 
 		err := handleField(config, field, value)
