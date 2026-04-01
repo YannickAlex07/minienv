@@ -1,6 +1,7 @@
 package minienv_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,9 +74,14 @@ func TestLoadWithInt8Overflow(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "out of range")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "out of range")
 }
 
 func TestLoadWithInt16(t *testing.T) {
@@ -110,9 +116,14 @@ func TestLoadWithInt16Overflow(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "out of range")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "out of range")
 }
 
 func TestLoadWithInt32(t *testing.T) {
@@ -147,9 +158,14 @@ func TestLoadWithInt32Overflow(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "out of range")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "out of range")
 }
 
 func TestLoadWithInt64(t *testing.T) {
@@ -201,9 +217,14 @@ func TestLoadWithFloat32Overflow(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "out of range")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "out of range")
 }
 
 func TestLoadWithFloat(t *testing.T) {
@@ -338,9 +359,14 @@ func TestLoadWithMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	missingErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", missingErr.Field)
-	assert.ErrorContains(t, missingErr, "no value was found for field with lookup key: TEST_VALUE")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "no value was found for field with lookup key: TEST_VALUE")
 }
 
 func TestLoadWithMissingNestedValue(t *testing.T) {
@@ -358,9 +384,14 @@ func TestLoadWithMissingNestedValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	missingErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", missingErr.Field)
-	assert.ErrorContains(t, missingErr, "no value was found for field with lookup key: TEST_VALUE")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "no value was found for field with lookup key: TEST_VALUE")
 }
 
 func TestLoadWithUnsupportedType(t *testing.T) {
@@ -378,9 +409,14 @@ func TestLoadWithUnsupportedType(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "unsupported type")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "unsupported type")
 }
 
 func TestLoadWithEmptyTag(t *testing.T) {
@@ -396,9 +432,14 @@ func TestLoadWithEmptyTag(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "tag string cannot be empty")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "tag string cannot be empty")
 }
 
 func TestLoadWithUnknownTagOption(t *testing.T) {
@@ -414,9 +455,14 @@ func TestLoadWithUnknownTagOption(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "unknown tag option \"unknown\"")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "unknown tag option \"unknown\"")
 }
 
 func TestLoadWithInvalidInt(t *testing.T) {
@@ -434,9 +480,14 @@ func TestLoadWithInvalidInt(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "strconv.ParseInt: parsing \"test-value\": invalid syntax")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "strconv.ParseInt: parsing \"test-value\": invalid syntax")
 }
 
 func TestLoadWithInvalidBool(t *testing.T) {
@@ -454,9 +505,14 @@ func TestLoadWithInvalidBool(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "parsing \"test-value\": invalid syntax")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "parsing \"test-value\": invalid syntax")
 }
 
 func TestLoadWithInvalidFloat(t *testing.T) {
@@ -474,9 +530,14 @@ func TestLoadWithInvalidFloat(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	conversionErr := err.(minienv.FieldError)
-	assert.Equal(t, "Value", conversionErr.Field)
-	assert.ErrorContains(t, conversionErr, "parsing \"test-value\": invalid syntax")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "parsing \"test-value\": invalid syntax")
 }
 
 func TestLoadWithDefaultString(t *testing.T) {
@@ -537,9 +598,14 @@ func TestLoadWithDefaultMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 
-	parseError := err.(minienv.FieldError)
-	assert.Equal(t, "Value", parseError.Field)
-	assert.ErrorContains(t, parseError, "default env value cannot be empty")
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 1)
+
+	var fieldErr minienv.FieldError
+	assert.True(t, errors.As(err, &fieldErr))
+	assert.Equal(t, "Value", fieldErr.Field)
+	assert.ErrorContains(t, fieldErr, "default env value cannot be empty")
 }
 
 func TestLoadWithUnsettableField(t *testing.T) {
@@ -812,4 +878,43 @@ func TestLoadMapWithMissingValue(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "map value must be in the format key:value, got: key")
+}
+
+func TestLoadWithMultipleErrors(t *testing.T) {
+	// Arrange
+	type S struct {
+		Name    string `env:"TEST_NAME"`
+		Age     int    `env:"TEST_AGE"`
+		Nested  struct {
+			Host string `env:"TEST_HOST"`
+		}
+		Active  bool `env:"TEST_ACTIVE"`
+	}
+
+	// Only set Age with an invalid value, leave all others missing
+	setenv(t, "TEST_AGE", "not-a-number")
+
+	// Act
+	var s S
+	err := minienv.Load(&s)
+
+	// Assert
+	assert.Error(t, err)
+
+	var loadErrors minienv.LoadErrors
+	assert.True(t, errors.As(err, &loadErrors))
+	assert.Len(t, loadErrors, 4)
+
+	// Collect field names from all errors
+	fieldNames := make([]string, len(loadErrors))
+	for i, e := range loadErrors {
+		var fieldErr minienv.FieldError
+		assert.True(t, errors.As(e, &fieldErr))
+		fieldNames[i] = fieldErr.Field
+	}
+
+	assert.Contains(t, fieldNames, "Name")
+	assert.Contains(t, fieldNames, "Age")
+	assert.Contains(t, fieldNames, "Host")
+	assert.Contains(t, fieldNames, "Active")
 }
